@@ -455,4 +455,39 @@
             document.getElementById('tutorial-step-1'),
             document.getElementById('tutorial-step-2'),
             document.getElementById('tutorial-step-3'),
-           
+            document.getElementById('tutorial-step-4'),
+            document.getElementById('tutorial-step-5'),
+            document.getElementById('tutorial-step-6')
+        ];
+        let currentStep = 0;
+
+        // Show the first step
+        tutorialSteps[currentStep].style.display = 'block';
+
+        // Event listener for the "Next" button
+        for (let i = 0; i < tutorialSteps.length - 1; i++) {
+            const nextButton = tutorialSteps[i].querySelector('button[id^="tutorial-next"]');
+            nextButton.addEventListener('click', () => {
+                tutorialSteps[currentStep].style.display = 'none';
+                currentStep++;
+                tutorialSteps[currentStep].style.display = 'block';
+            });
+        }
+
+        // Event listener for the "Skip Tutorial" button
+        for (let i = 0; i < tutorialSteps.length - 1; i++) {
+            const skipButton = tutorialSteps[i].querySelector('button[id^="tutorial-skip"]');
+            skipButton.addEventListener('click', () => {
+                tutorialPopup.style.display = 'none';
+                tutorialOverlay.style.display = 'none';
+            });
+        }
+
+        // Event listener for the "Close" button
+        document.getElementById('tutorial-close').addEventListener('click', () => {
+            tutorialPopup.style.display = 'none';
+            tutorialOverlay.style.display = 'none';
+        });
+    </script>
+</body>
+</html>
