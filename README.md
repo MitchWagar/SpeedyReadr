@@ -1,0 +1,2 @@
+# SpeedyReadr
+Speedy Readr website
