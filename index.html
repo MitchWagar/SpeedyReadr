@@ -214,6 +214,13 @@
         let isDragging = false;
         let offsetX, offsetY;
 
+        wordDisplay.addEventListener('touchstart', (e) => {
+            isDragging = true;
+            offsetX = e.touches[0].clientX - wordDisplay.getBoundingClientRect().left;
+            offsetY = e.touches[0].clientY - wordDisplay.getBoundingClientRect().top;
+            wordDisplay.style.cursor = 'grabbing'; // Change cursor to grabbing
+        });
+
         wordDisplay.addEventListener('mousedown', (e) => {
             isDragging = true;
             offsetX = e.clientX - wordDisplay.getBoundingClientRect().left;
@@ -221,11 +228,23 @@
             wordDisplay.style.cursor = 'grabbing'; // Change cursor to grabbing
         });
 
+        document.addEventListener('touchmove', (e) => {
+            if (isDragging) {
+                wordDisplay.style.left = `${e.touches[0].clientX - offsetX}px`;
+                wordDisplay.style.top = `${e.touches[0].clientY - offsetY}px`;
+            }
+        });
+
         document.addEventListener('mousemove', (e) => {
             if (isDragging) {
                 wordDisplay.style.left = `${e.clientX - offsetX}px`;
                 wordDisplay.style.top = `${e.clientY - offsetY}px`;
             }
+        });
+
+        document.addEventListener('touchend', () => {
+            isDragging = false;
+            wordDisplay.style.cursor = 'grab'; // Change cursor back to grab
         });
 
         document.addEventListener('mouseup', () => {
@@ -347,6 +366,16 @@
         });
 
         // Pause functionality on mouse hold (if pauseOnClick is true)
+        document.addEventListener('touchstart', () => {
+            if (pauseOnClick) {
+                isPaused = true;
+            }
+        });
+        document.addEventListener('touchend', () => {
+            if (pauseOnClick) {
+                isPaused = false;
+            }
+        });
         document.addEventListener('mousedown', () => {
             if (pauseOnClick) {
                 isPaused = true;
@@ -359,6 +388,15 @@
         });
 
         // Pause functionality on mouse movement (if pauseOnMouseMove is true)
+        document.addEventListener('touchmove', () => {
+            if (pauseOnMouseMove) {
+                isMouseMoving = true; // Pause when mouse is moving
+                clearTimeout(mouseMoveTimeout); // Clear any existing timeout
+                mouseMoveTimeout = setTimeout(() => {
+                    isMouseMoving = false; // Resume after a short delay
+                }, 50); // Resume 50ms after mouse stops moving
+            }
+        });
         document.addEventListener('mousemove', () => {
             if (pauseOnMouseMove) {
                 isMouseMoving = true; // Pause when mouse is moving
