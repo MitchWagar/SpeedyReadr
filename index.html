@@ -170,22 +170,27 @@
         <div id="tutorial-step-1">
             <p><strong>Step 1:</strong> Paste your script into the text box and click "Go" to start reading.</p>
             <button id="tutorial-next">Next</button>
+            <button id="tutorial-skip">Skip Tutorial</button>
         </div>
         <div id="tutorial-step-2" style="display: none;">
             <p><strong>Step 2:</strong> Use the speed slider to adjust the reading speed in words per minute (WPM).</p>
             <button id="tutorial-next-2">Next</button>
+            <button id="tutorial-skip-2">Skip Tutorial</button>
         </div>
         <div id="tutorial-step-3" style="display: none;">
             <p><strong>Step 3:</strong> Toggle between pausing on mouse movement or click and hold using the switches below.</p>
             <button id="tutorial-next-3">Next</button>
+            <button id="tutorial-skip-3">Skip Tutorial</button>
         </div>
         <div id="tutorial-step-4" style="display: none;">
             <p><strong>Step 4:</strong> Press the <strong>space bar</strong> to <strong>start and stop</strong> the flow of words.</p>
             <button id="tutorial-next-4">Next</button>
+            <button id="tutorial-skip-4">Skip Tutorial</button>
         </div>
         <div id="tutorial-step-5" style="display: none;">
             <p><strong>Step 5:</strong> Drag the word display to move it anywhere on the screen.</p>
             <button id="tutorial-next-5">Next</button>
+            <button id="tutorial-skip-5">Skip Tutorial</button>
         </div>
         <div id="tutorial-step-6" style="display: none;">
             <p><strong>Step 6:</strong> Use the <strong>mouse wheel</strong> to <strong>rewind</strong> (scroll up) or <strong>fast forward</strong> (scroll down) through the words.</p>
@@ -202,6 +207,7 @@
         let mouseMoveTimeout = null;
         let pauseOnMouseMove = false; // Default to pause on mouse move
         let pauseOnClick = true; // Default to pause on click and hold
+        let originalText = ''; // Store the original text
 
         // Dragging functionality for the word display
         const wordDisplay = document.getElementById('word-display');
@@ -235,6 +241,7 @@
                 return;
             }
             words = text.split(/\s+/); // Split text into words
+            originalText = text; // Store the original text
             currentIndex = 0;
             wordDisplay.textContent = words[currentIndex];
             updateProgress(); // Update progress
@@ -251,6 +258,11 @@
 
         // Function to restart the display
         function restartDisplay() {
+            const newText = document.getElementById('text-input').value.trim();
+            if (newText !== originalText) {
+                words = newText.split(/\s+/); // Split new text into words
+                originalText = newText; // Update the original text
+            }
             currentIndex = 0; // Reset to the first word
             wordDisplay.textContent = words[currentIndex];
             updateProgress(); // Update progress
@@ -394,35 +406,23 @@
         tutorialSteps[currentStep].style.display = 'block';
 
         // Event listener for the "Next" button
-        document.getElementById('tutorial-next').addEventListener('click', () => {
-            tutorialSteps[currentStep].style.display = 'none';
-            currentStep++;
-            tutorialSteps[currentStep].style.display = 'block';
-        });
+        for (let i = 0; i < tutorialSteps.length - 1; i++) {
+            const nextButton = tutorialSteps[i].querySelector('button[id^="tutorial-next"]');
+            nextButton.addEventListener('click', () => {
+                tutorialSteps[currentStep].style.display = 'none';
+                currentStep++;
+                tutorialSteps[currentStep].style.display = 'block';
+            });
+        }
 
-        document.getElementById('tutorial-next-2').addEventListener('click', () => {
-            tutorialSteps[currentStep].style.display = 'none';
-            currentStep++;
-            tutorialSteps[currentStep].style.display = 'block';
-        });
-
-        document.getElementById('tutorial-next-3').addEventListener('click', () => {
-            tutorialSteps[currentStep].style.display = 'none';
-            currentStep++;
-            tutorialSteps[currentStep].style.display = 'block';
-        });
-
-        document.getElementById('tutorial-next-4').addEventListener('click', () => {
-            tutorialSteps[currentStep].style.display = 'none';
-            currentStep++;
-            tutorialSteps[currentStep].style.display = 'block';
-        });
-
-        document.getElementById('tutorial-next-5').addEventListener('click', () => {
-            tutorialSteps[currentStep].style.display = 'none';
-            currentStep++;
-            tutorialSteps[currentStep].style.display = 'block';
-        });
+        // Event listener for the "Skip Tutorial" button
+        for (let i = 0; i < tutorialSteps.length - 1; i++) {
+            const skipButton = tutorialSteps[i].querySelector('button[id^="tutorial-skip"]');
+            skipButton.addEventListener('click', () => {
+                tutorialPopup.style.display = 'none';
+                tutorialOverlay.style.display = 'none';
+            });
+        }
 
         // Event listener for the "Close" button
         document.getElementById('tutorial-close').addEventListener('click', () => {
