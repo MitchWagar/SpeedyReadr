@@ -474,15 +474,16 @@
             }
         }, 1000);
 
-        // Event listener for the "Next" button
-        for (let i = 0; i < tutorialSteps.length - 1; i++) {
-            const nextButton = tutorialSteps[i].querySelector('button[id^="tutorial-next"]');
-            nextButton.addEventListener('click', () => {
-                tutorialSteps[currentStep].style.display = 'none';
-                currentStep++;
-                tutorialSteps[currentStep].style.display = 'block';
-            });
-        }
+       // Event listener for the "Next" button
+for (let i = 0; i < tutorialSteps.length; i++) {
+    const nextButton = tutorialSteps[i].querySelector('button[id^="tutorial-next"]');
+    if (nextButton) {
+        nextButton.addEventListener('click', () => {
+            tutorialSteps[currentStep].style.display = 'none';
+            currentStep++;
+            tutorialSteps[currentStep].style.display = 'block';
+        });
+    }
 
         // Event listener for the "Skip Tutorial" button
         for (let i = 0; i < tutorialSteps.length - 1; i++) {
