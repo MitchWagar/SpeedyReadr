@@ -439,6 +439,106 @@
         // Initialize the speed label
         updateSpeedLabel();
 
+       <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word-by-Word Script Reader</title>
+    <style>
+        /* Existing styles remain the same */
+
+        /* Style for the image in the tutorial */
+        #tutorial-image {
+            width: 100%;
+            max-width: 300px;
+            height: auto;
+            margin: 10px 0;
+        }
+
+        /* Style for the timer text */
+        #timer-text {
+            font-size: 14px;
+            color: #666;
+            margin: 10px 0;
+        }
+
+        /* Disable the "Next" button initially */
+        #tutorial-next {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <!-- Draggable scrolling words display -->
+    <div id="word-display">Ready to read!</div>
+
+    <!-- Text input field -->
+    <textarea id="text-input" placeholder="Paste your script here..."></textarea>
+
+    <!-- Buttons -->
+    <div>
+        <button id="go-button">Go</button>
+        <button id="theme-toggle">Toggle Dark Mode</button>
+    </div>
+
+    <!-- Speed slider and labels -->
+    <input type="range" id="speed-slider" min="50" max="500" value="200">
+    <div id="speed-label">Speed: 200 WPM</div>
+    <div id="progress-label">Progress: 0%</div>
+
+    <!-- Toggle switches for pause modes -->
+    <div class="toggle-switch">
+        <input type="checkbox" id="pause-on-move-toggle">
+        <label for="pause-on-move-toggle">Pause on Mouse Move</label>
+    </div>
+    <div class="toggle-switch">
+        <input type="checkbox" id="pause-on-click-toggle" checked>
+        <label for="pause-on-click-toggle">Pause on Click and Hold</label>
+    </div>
+
+    <!-- Pop-up tutorial -->
+    <div id="tutorial-overlay"></div>
+    <div id="tutorial-popup">
+        <h2>Welcome to the Word-by-Word Script Reader!</h2>
+        <p>Here's a quick guide to help you get started:</p>
+        <div id="tutorial-step-1">
+            <p><strong>Step 1:</strong> Please take a moment to view the image below.</p>
+            <img id="tutorial-image" src="71aIc+7SyCL._SL1500_.jpg" alt="Tutorial Image">
+            <p id="timer-text">Please wait 5 seconds to continue...</p>
+            <button id="tutorial-next" disabled>Next</button>
+            <button id="tutorial-skip">Skip Tutorial</button>
+        </div>
+        <div id="tutorial-step-2" style="display: none;">
+            <p><strong>Step 2:</strong> Paste your script into the text box and click "Go" to start reading.</p>
+            <button id="tutorial-next-2">Next</button>
+            <button id="tutorial-skip-2">Skip Tutorial</button>
+        </div>
+        <div id="tutorial-step-3" style="display: none;">
+            <p><strong>Step 3:</strong> Use the speed slider to adjust the reading speed in words per minute (WPM).</p>
+            <button id="tutorial-next-3">Next</button>
+            <button id="tutorial-skip-3">Skip Tutorial</button>
+        </div>
+        <div id="tutorial-step-4" style="display: none;">
+            <p><strong>Step 4:</strong> Toggle between pausing on mouse movement or click and hold using the switches below.</p>
+            <button id="tutorial-next-4">Next</button>
+            <button id="tutorial-skip-4">Skip Tutorial</button>
+        </div>
+        <div id="tutorial-step-5" style="display: none;">
+            <p><strong>Step 5:</strong> Press the <strong>space bar</strong> to <strong>start and stop</strong> the flow of words.</p>
+            <button id="tutorial-next-5">Next</button>
+            <button id="tutorial-skip-5">Skip Tutorial</button>
+        </div>
+        <div id="tutorial-step-6" style="display: none;">
+            <p><strong>Step 6:</strong> Drag the word display to move it anywhere on the screen.</p>
+            <button id="tutorial-close">Close</button>
+        </div>
+    </div>
+
+    <script>
+        // Existing JavaScript code remains the same until the tutorial functionality section
+
         // Tutorial functionality
         const tutorialPopup = document.getElementById('tutorial-popup');
         const tutorialOverlay = document.getElementById('tutorial-overlay');
@@ -474,20 +574,35 @@
             }
         }, 1000);
 
-        // Event listener for the "Next" button
-        nextButton.addEventListener('click', () => {
+        // Function to move to the next step
+        function goToNextStep() {
             tutorialSteps[currentStep].style.display = 'none';
             currentStep++;
-            tutorialSteps[currentStep].style.display = 'block';
-        });
+            if (currentStep < tutorialSteps.length) {
+                tutorialSteps[currentStep].style.display = 'block';
+            } else {
+                tutorialPopup.style.display = 'none';
+                tutorialOverlay.style.display = 'none';
+            }
+        }
+
+        // Add event listeners for all "Next" buttons
+        for (let i = 0; i < tutorialSteps.length - 1; i++) {
+            const nextButton = tutorialSteps[i].querySelector('button[id^="tutorial-next"]');
+            if (nextButton) {
+                nextButton.addEventListener('click', goToNextStep);
+            }
+        }
 
         // Event listener for the "Skip Tutorial" button
         for (let i = 0; i < tutorialSteps.length - 1; i++) {
             const skipButton = tutorialSteps[i].querySelector('button[id^="tutorial-skip"]');
-            skipButton.addEventListener('click', () => {
-                tutorialPopup.style.display = 'none';
-                tutorialOverlay.style.display = 'none';
-            });
+            if (skipButton) {
+                skipButton.addEventListener('click', () => {
+                    tutorialPopup.style.display = 'none';
+                    tutorialOverlay.style.display = 'none';
+                });
+            }
         }
 
         // Event listener for the "Close" button
