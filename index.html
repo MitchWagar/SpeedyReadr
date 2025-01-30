@@ -180,13 +180,14 @@
     <div id="tutorial-popup">
         <h2>Welcome to SpeedyReadr!</h2>
         <p>Here's a quick guide to help you get started, but first, buy my fuck*ng book!:</p>
-       <div id="tutorial-step-1">
-    <a href="https://www.mybook.to/Cold-Keep" target="_blank">
-        <img id="tutorial-image" src="71aIc+7SyCL._SL1500_.jpg" alt="Tutorial Image" style="width: 90%; max-width: 270px; height: auto;">
-    </a>
-    <p id="timer-text">Please wait 5 seconds to continue...</p>
-    <button id="tutorial-next" disabled>Next</button>
-</div>
+        <div id="tutorial-step-1">
+            <a href="https://www.mybook.to/Cold-Keep" target="_blank">
+                <img id="tutorial-image" src="71aIc+7SyCL._SL1500_.jpg" alt="Tutorial Image" style="width: 90%; max-width: 270px; height: auto;">
+            </a>
+            <p id="timer-text">Please wait 5 seconds to continue...</p>
+            <button id="tutorial-next" disabled>Next</button>
+            <button id="tutorial-skip">Skip Tutorial</button>
+        </div>
         <div id="tutorial-step-2" style="display: none;">
             <p><strong>Step 2:</strong> Paste your script into the text box and click "Go" to start reading.</p>
             <button id="tutorial-next-2">Next</button>
@@ -474,16 +475,17 @@
             }
         }, 1000);
 
-       // Event listener for the "Next" button
-for (let i = 0; i < tutorialSteps.length; i++) {
-    const nextButton = tutorialSteps[i].querySelector('button[id^="tutorial-next"]');
-    if (nextButton) {
-        nextButton.addEventListener('click', () => {
-            tutorialSteps[currentStep].style.display = 'none';
-            currentStep++;
-            tutorialSteps[currentStep].style.display = 'block';
-        });
-    }
+        // Event listener for the "Next" button
+        for (let i = 0; i < tutorialSteps.length; i++) {
+            const nextButton = tutorialSteps[i].querySelector('button[id^="tutorial-next"]');
+            if (nextButton) {
+                nextButton.addEventListener('click', () => {
+                    tutorialSteps[currentStep].style.display = 'none';
+                    currentStep++;
+                    tutorialSteps[currentStep].style.display = 'block';
+                });
+            }
+        }
 
         // Event listener for the "Skip Tutorial" button
         for (let i = 0; i < tutorialSteps.length - 1; i++) {
@@ -494,11 +496,11 @@ for (let i = 0; i < tutorialSteps.length; i++) {
             });
         }
 
-       // Event listener for the "Close" button
-document.getElementById('tutorial-close').addEventListener('click', () => {
-    tutorialPopup.style.display = 'none';
-    tutorialOverlay.style.display = 'none';
-});
+        // Event listener for the "Close" button
+        document.getElementById('tutorial-close').addEventListener('click', () => {
+            tutorialPopup.style.display = 'none';
+            tutorialOverlay.style.display = 'none';
+        });
     </script>
 </body>
 </html>
