@@ -458,8 +458,8 @@
 
         // Timer for the first step
         const timerText = document.getElementById('timer-text');
-        const nextButton = document.getElementById('timer-text');
-        let timeLeft = 5;
+        const nextButton = document.getElementById('tutorial-next');
+        let timeLeft = 7;
 
         // Start the countdown
         const countdown = setInterval(() => {
@@ -468,7 +468,7 @@
 
             if (timeLeft <= 0) {
                 clearInterval(countdown);
-                timerText.textContent = "You can now continue.";
+                timerText.textContent = "Carry on.";
                 nextButton.disabled = false;
                 nextButton.style.backgroundColor = '#007bff';
                 nextButton.style.cursor = 'pointer';
