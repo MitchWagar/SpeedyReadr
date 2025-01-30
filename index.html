@@ -172,7 +172,7 @@
     </div>
     <div class="toggle-switch">
         <input type="checkbox" id="pause-on-click-toggle" checked>
-        <label for="pause-on-click-toggle">Scroll on Click and Hold</label>
+        <label for="pause-on-click-toggle">Pause on Click and Hold</label>
     </div>
 
     <!-- Pop-up tutorial -->
@@ -199,7 +199,7 @@
             <button id="tutorial-skip-3">Skip Tutorial</button>
         </div>
         <div id="tutorial-step-4" style="display: none;">
-            <p><strong>Step 4:</strong> Toggle between pausing on mouse movement or scrolling on click and hold using the switches below.</p>
+            <p><strong>Step 4:</strong> Toggle between pausing on mouse movement or click and hold using the switches below.</p>
             <button id="tutorial-next-4">Next</button>
             <button id="tutorial-skip-4">Skip Tutorial</button>
         </div>
@@ -217,13 +217,13 @@
     <script>
         let words = [];
         let currentIndex = 0;
+        let intervalId = null;
         let isPaused = false;
         let isMouseMoving = false;
         let mouseMoveTimeout = null;
         let pauseOnMouseMove = false;
-        let scrollOnClick = true;
+        let pauseOnClick = true;
         let originalText = '';
-        let scrollIntervalId = null;
 
         // Dragging functionality for the word display
         const wordDisplay = document.getElementById('word-display');
@@ -280,6 +280,9 @@
             currentIndex = 0;
             wordDisplay.textContent = words[currentIndex];
             updateProgress();
+            const speed = getSpeed();
+            clearInterval(intervalId);
+            intervalId = setInterval(showNextWord, speed);
 
             const goButton = document.getElementById('go-button');
             goButton.textContent = "Restart";
@@ -297,6 +300,9 @@
             currentIndex = 0;
             wordDisplay.textContent = words[currentIndex];
             updateProgress();
+            clearInterval(intervalId);
+            const speed = getSpeed();
+            intervalId = setInterval(showNextWord, speed);
         }
 
         // Function to show the next word
@@ -304,7 +310,7 @@
             if (isPaused || isMouseMoving) return;
             currentIndex++;
             if (currentIndex >= words.length) {
-                clearInterval(scrollIntervalId);
+                clearInterval(intervalId);
                 wordDisplay.textContent = "Done!";
                 updateProgress();
                 return;
@@ -313,16 +319,15 @@
             updateProgress();
         }
 
-        // Function to handle scrolling on button hold
-        function startScrolling() {
-            if (scrollIntervalId) return;
-            const speed = getSpeed();
-            scrollIntervalId = setInterval(showNextWord, speed);
-        }
-
-        function stopScrolling() {
-            clearInterval(scrollIntervalId);
-            scrollIntervalId = null;
+        // Function to rewind or skip ahead based on mouse scroll
+        function handleScroll(event) {
+            if (event.deltaY < 0) {
+                currentIndex = Math.max(currentIndex - 1, 0);
+            } else if (event.deltaY > 0) {
+                currentIndex = Math.min(currentIndex + 1, words.length - 1);
+            }
+            wordDisplay.textContent = words[currentIndex];
+            updateProgress();
         }
 
         // Function to calculate speed in milliseconds per word based on WPM
@@ -351,6 +356,11 @@
         // Event listener for the speed slider
         document.getElementById('speed-slider').addEventListener('input', function() {
             updateSpeedLabel();
+            const speed = getSpeed();
+            if (intervalId) {
+                clearInterval(intervalId);
+                intervalId = setInterval(showNextWord, speed);
+            }
         });
 
         // Event listener for the theme toggle button
@@ -363,26 +373,30 @@
             pauseOnMouseMove = this.checked;
         });
 
-        // Event listener for the scroll on click toggle
+        // Event listener for the pause on click toggle
         document.getElementById('pause-on-click-toggle').addEventListener('change', function() {
-            scrollOnClick = this.checked;
+            pauseOnClick = this.checked;
         });
 
-        // Scroll functionality on button hold
-        const goButton = document.getElementById('go-button');
-        goButton.addEventListener('mousedown', () => {
-            if (scrollOnClick) {
-                startScrolling();
+        // Pause functionality on mouse hold (if pauseOnClick is true)
+        document.addEventListener('touchstart', () => {
+            if (pauseOnClick) {
+                isPaused = true;
             }
         });
-        goButton.addEventListener('mouseup', () => {
-            if (scrollOnClick) {
-                stopScrolling();
+        document.addEventListener('touchend', () => {
+            if (pauseOnClick) {
+                isPaused = false;
             }
         });
-        goButton.addEventListener('mouseleave', () => {
-            if (scrollOnClick) {
-                stopScrolling();
+        document.addEventListener('mousedown', () => {
+            if (pauseOnClick) {
+                isPaused = true;
+            }
+        });
+        document.addEventListener('mouseup', () => {
+            if (pauseOnClick) {
+                isPaused = false;
             }
         });
 
@@ -405,6 +419,23 @@
                 }, 50);
             }
         });
+
+        // Start/stop functionality on space bar keydown
+        document.addEventListener('keydown', (event) => {
+            if (event.code === 'Space') {
+                event.preventDefault();
+                if (intervalId) {
+                    clearInterval(intervalId);
+                    intervalId = null;
+                } else {
+                    const speed = getSpeed();
+                    intervalId = setInterval(showNextWord, speed);
+                }
+            }
+        });
+
+        // Scroll functionality to rewind or skip ahead
+        document.addEventListener('wheel', handleScroll);
 
         // Initialize the speed label
         updateSpeedLabel();
