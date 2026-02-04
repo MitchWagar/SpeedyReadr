@@ -45,15 +45,17 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 </select>
 
 <div id="techLogin">
-<select id="techSelect"></select>
+<select id="techSelect">
+<option value="">Select Technician</option>
+</select>
 </div>
 
 <input type="password" id="adminPassword" class="hidden" placeholder="Admin Password">
-
 <button onclick="login()">Login</button>
 </div>
 
 <div id="adminPanel" class="hidden">
+
 <div class="card">
 <h3>Add Technician</h3>
 <input id="newTechName" placeholder="Technician Name">
@@ -64,8 +66,14 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 <div class="card">
 <h3>Add New Machine</h3>
 <input id="newMachineId" placeholder="Machine ID">
+<input id="airport" placeholder="Airport">
+<input id="terminal" placeholder="Terminal">
+<input id="checkpoint" placeholder="Checkpoint">
+<input id="lane" placeholder="Lane">
+<textarea id="notes" placeholder="Position Notes"></textarea>
 <button onclick="createMachine()">Create Machine</button>
 </div>
+
 </div>
 
 <div id="dashboard" class="hidden">
@@ -83,6 +91,7 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 <div class="tabs">
 <button class="tab-button active" onclick="showTab('historyTab', this)">Service History</button>
 <button class="tab-button" onclick="showTab('logTab', this)">Log Service</button>
+<button class="tab-button" onclick="showTab('locationTab', this)">Location</button>
 </div>
 
 <div id="historyTab">
@@ -102,6 +111,23 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 </div>
 </div>
 
+<div id="locationTab" class="hidden">
+<div class="card">
+<h3>Current Location</h3>
+<div id="locationDisplay"></div>
+</div>
+
+<div class="card">
+<h3>Update Location (If Moved)</h3>
+<input id="updateAirport" placeholder="Airport">
+<input id="updateTerminal" placeholder="Terminal">
+<input id="updateCheckpoint" placeholder="Checkpoint">
+<input id="updateLane" placeholder="Lane">
+<textarea id="updateNotes" placeholder="Position Notes"></textarea>
+<button onclick="updateLocation()">Update Location</button>
+</div>
+</div>
+
 </div>
 </div>
 
@@ -116,20 +142,23 @@ let loggedTech=null;
 /* -------- TECHS -------- */
 
 async function populateTechDropdown(){
-    const res = await fetch(`${API_BASE}/techs`);
-    const techs = await res.json();
-
-    const select = document.getElementById("techSelect");
-    select.innerHTML='<option value="">Select Technician</option>';
-
-    techs.forEach(t=>{
-        select.innerHTML+=`<option value="${t.id}" data-phone="${t.phone}">${t.name}</option>`;
-    });
+    try{
+        const res = await fetch(`${API_BASE}/techs`);
+        const techs = await res.json();
+        const select = document.getElementById("techSelect");
+        select.innerHTML='<option value="">Select Technician</option>';
+        techs.forEach(t=>{
+            select.innerHTML+=`<option value="${t.id}" data-phone="${t.phone}">${t.name}</option>`;
+        });
+    }catch(err){
+        console.error("Tech load failed",err);
+    }
 }
 
 async function addTechnician(){
-    const name=newTechName.value;
-    const phone=newTechPhone.value;
+    const name=document.getElementById("newTechName").value;
+    const phone=document.getElementById("newTechPhone").value;
+    if(!name||!phone) return alert("Name and phone required");
 
     await fetch(`${API_BASE}/techs`,{
         method:"POST",
@@ -144,32 +173,35 @@ async function addTechnician(){
 /* -------- LOGIN -------- */
 
 function toggleLoginFields(){
-    const selectedRole=roleSelect.value;
-    adminPassword.classList.toggle("hidden",selectedRole!=="Admin");
-    techLogin.classList.toggle("hidden",selectedRole!=="Tech");
+    const selectedRole=document.getElementById("roleSelect").value;
+    document.getElementById("adminPassword").classList.toggle("hidden",selectedRole!=="Admin");
+    document.getElementById("techLogin").classList.toggle("hidden",selectedRole!=="Tech");
 }
 
 function login(){
-    role=roleSelect.value;
+    role=document.getElementById("roleSelect").value;
 
     if(role==="Admin"){
-        if(adminPassword.value!=="1234") return alert("Incorrect Password");
-        adminPanel.classList.remove("hidden");
+        if(document.getElementById("adminPassword").value!=="1234")
+            return alert("Incorrect Password");
+        document.getElementById("adminPanel").classList.remove("hidden");
     }
 
     if(role==="Tech"){
-        const selected=techSelect.options[techSelect.selectedIndex];
-        if(!selected.value) return alert("Select Technician");
+        const selected=document.getElementById("techSelect");
+        const option=selected.options[selected.selectedIndex];
+        if(!option.value) return alert("Select Technician");
         loggedTech={
-            id:selected.value,
-            name:selected.text,
-            phone:selected.dataset.phone
+            id:option.value,
+            name:option.text,
+            phone:option.dataset.phone
         };
     }
 
-    loginCard.classList.add("hidden");
-    dashboard.classList.remove("hidden");
-    userDisplay.innerText=role==="Tech"?`${loggedTech.name} (${loggedTech.phone})`:role;
+    document.getElementById("loginCard").classList.add("hidden");
+    document.getElementById("dashboard").classList.remove("hidden");
+    document.getElementById("userDisplay").innerText=
+        role==="Tech"?`${loggedTech.name} (${loggedTech.phone})`:role;
 }
 
 function logout(){ location.reload(); }
@@ -177,23 +209,28 @@ function logout(){ location.reload(); }
 /* -------- MACHINE -------- */
 
 async function createMachine(){
-    const machine_id=newMachineId.value;
-
+    const machine_id=document.getElementById("newMachineId").value;
     await fetch(`${API_BASE}/machines`,{
         method:"POST",
         headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({machine_id})
+        body:JSON.stringify({
+            machine_id,
+            airport:airport.value,
+            terminal:terminal.value,
+            checkpoint:checkpoint.value,
+            lane:lane.value,
+            notes:notes.value
+        })
     });
-
     alert("Machine Created");
 }
 
-function loadMachine(){
-    currentMachine=machineId.value.trim();
+async function loadMachine(){
+    currentMachine=document.getElementById("machineId").value.trim();
     if(!currentMachine) return alert("Enter Machine ID");
-
-    machineSection.classList.remove("hidden");
+    document.getElementById("machineSection").classList.remove("hidden");
     displayHistory();
+    loadLocation();
 }
 
 /* -------- SERVICE -------- */
@@ -222,28 +259,67 @@ async function addService(){
 }
 
 async function displayHistory(){
-    const res = await fetch(`${API_BASE}/logs/${currentMachine}`);
-    const logs = await res.json();
+    try{
+        const res = await fetch(`${API_BASE}/logs/${currentMachine}`);
+        const logs = await res.json();
+        const history=document.getElementById("history");
+        history.innerHTML="";
+        logs.reverse().forEach(log=>{
+            history.innerHTML+=`
+            <div class="log">
+            <strong>${new Date(log.created_at).toLocaleString()}</strong><br>
+            Tech: ${log.tech_name}<br>
+            Phone: ${log.tech_phone}<br>
+            Downtime: ${log.downtime} hrs<br>
+            Work: ${log.details}${log.parts ? "<br>Parts: "+log.parts : ""}
+            </div>`;
+        });
+    }catch(err){
+        console.error("History load failed",err);
+    }
+}
 
-    history.innerHTML="";
+/* -------- LOCATION -------- */
 
-    logs.forEach(log=>{
-        history.innerHTML+=`
-        <div class="log">
-        <strong>${new Date(log.created_at).toLocaleString()}</strong><br>
-        Tech: ${log.tech_name}<br>
-        Phone: ${log.tech_phone}<br>
-        Downtime: ${log.downtime} hrs<br>
-        Work: ${log.details}${log.parts ? "<br>Parts: "+log.parts : ""}
-        </div>`;
+async function loadLocation(){
+    try{
+        const res=await fetch(`${API_BASE}/machines/${currentMachine}`);
+        const data=await res.json();
+        const display=document.getElementById("locationDisplay");
+        display.innerHTML=`
+        Airport: ${data.airport||""}<br>
+        Terminal: ${data.terminal||""}<br>
+        Checkpoint: ${data.checkpoint||""}<br>
+        Lane: ${data.lane||""}<br>
+        Notes: ${data.notes||""}`;
+    }catch(err){
+        console.error("Location load failed",err);
+    }
+}
+
+async function updateLocation(){
+    await fetch(`${API_BASE}/machines/${currentMachine}`,{
+        method:"PUT",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+            airport:updateAirport.value,
+            terminal:updateTerminal.value,
+            checkpoint:updateCheckpoint.value,
+            lane:updateLane.value,
+            notes:updateNotes.value
+        })
     });
+
+    alert("Location Updated");
+    loadLocation();
 }
 
 /* -------- TABS -------- */
 
 function showTab(tabId,btn){
-    historyTab.classList.add("hidden");
-    logTab.classList.add("hidden");
+    ["historyTab","logTab","locationTab"].forEach(id=>{
+        document.getElementById(id).classList.add("hidden");
+    });
     document.getElementById(tabId).classList.remove("hidden");
     document.querySelectorAll(".tab-button").forEach(b=>b.classList.remove("active"));
     btn.classList.add("active");
@@ -259,7 +335,7 @@ function startScanner(){
         {facingMode:"environment"},
         {fps:10,qrbox:250},
         qr=>{
-            machineId.value=qr;
+            document.getElementById("machineId").value=qr;
             scanner.stop();
             reader.classList.add("hidden");
         }
