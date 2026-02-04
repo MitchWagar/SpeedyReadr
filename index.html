@@ -1,85 +1,401 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SpeedyReadr</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 2rem;
-      max-width: 600px;
-    }
-    h1 { text-align: center; }
-    form { margin-bottom: 2rem; }
-    input, textarea {
-      width: 100%;
-      padding: 0.5rem;
-      margin-top: 0.5rem;
-      margin-bottom: 1rem;
-    }
-    button {
-      padding: 0.5rem 1rem;
-      cursor: pointer;
-    }
-    .post {
-      border: 1px solid #ccc;
-      padding: 1rem;
-      margin-bottom: 1rem;
-      border-radius: 5px;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Servi-Sync Enterprise</title>
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<style>
+body { font-family: Arial, sans-serif; margin:0; background:#eef2f7; }
+header { background:#0f172a; color:white; padding:15px; display:flex; justify-content:space-between; align-items:center; }
+.container { padding:20px; max-width:1100px; margin:auto; }
+.card { background:white; padding:20px; border-radius:10px; margin-bottom:20px; box-shadow:0 3px 8px rgba(0,0,0,0.08); }
+button { padding:8px 15px; border:none; border-radius:6px; background:#2563eb; color:white; cursor:pointer; }
+button:hover { background:#1d4ed8; }
+input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6px; border:1px solid #ccc; }
+.hidden { display:none; }
+.log { border-left:4px solid #2563eb; padding-left:10px; margin-bottom:15px; }
+.tabs { display:flex; gap:10px; margin-bottom:10px; }
+.tab-button { background:#cbd5e1; color:black; }
+.tab-button.active { background:#2563eb; color:white; }
+#reader { width:300px; margin-top:10px; }
+</style>
 </head>
+
 <body>
-  <h1>SpeedyReadr</h1>
 
-  <form id="postForm">
-    <label for="title">Title:</label>
-    <input type="text" id="title" name="title" required>
+<header>
+<h2>Servi-Sync Enterprise</h2>
+<div>
+<span id="userDisplay"></span>
+<button onclick="logout()">Logout</button>
+</div>
+</header>
 
-    <label for="content">Content:</label>
-    <textarea id="content" name="content" rows="4" required></textarea>
+<div class="container">
 
-    <button type="submit">Add Post</button>
-  </form>
+<!-- LOGIN -->
+<div id="loginCard" class="card">
+<h3>Login</h3>
 
-  <div id="postsContainer"></div>
+<select id="roleSelect" onchange="toggleLoginFields()">
+<option value="Tech">Technician</option>
+<option value="Supervisor">Supervisor</option>
+<option value="Admin">Admin</option>
+</select>
 
-  <script>
-    const form = document.getElementById('postForm');
-    const postsContainer = document.getElementById('postsContainer');
+<div id="techLogin">
+<select id="techSelect">
+<option value="">Select Technician</option>
+</select>
+</div>
 
-    // Load existing posts
-    async function loadPosts() {
-      const res = await fetch('/posts');
-      const posts = await res.json();
-      postsContainer.innerHTML = '';
-      posts.forEach(post => {
-        const div = document.createElement('div');
-        div.className = 'post';
-        div.innerHTML = `<h3>${post.title}</h3><p>${post.content}</p>`;
-        postsContainer.appendChild(div);
-      });
-    }
+<input type="password" id="adminPassword" class="hidden" placeholder="Admin Password">
 
-    // Submit new post
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const title = form.title.value.trim();
-      const content = form.content.value.trim();
-      if (!title || !content) return;
+<button onclick="login()">Login</button>
+</div>
 
-      await fetch('/posts', {
+<!-- ADMIN PANEL -->
+<div id="adminPanel" class="hidden">
+
+<div class="card">
+<h3>Add Technician</h3>
+<input id="newTechName" placeholder="Technician Name">
+<input id="newTechPhone" placeholder="Phone Number">
+<button onclick="addTechnician()">Add Technician</button>
+</div>
+
+<div class="card">
+<h3>Add New Machine</h3>
+<input id="newMachineId" placeholder="Machine ID">
+<input id="airport" placeholder="Airport">
+<input id="terminal" placeholder="Terminal">
+<input id="checkpoint" placeholder="Checkpoint">
+<input id="lane" placeholder="Lane">
+<textarea id="notes" placeholder="Position Notes"></textarea>
+<button onclick="createMachine()">Create Machine</button>
+</div>
+
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" class="hidden">
+
+<div class="card">
+<h3>Machine Lookup</h3>
+<input id="machineId" placeholder="Enter Machine ID">
+<button onclick="startScanner()">Scan QR</button>
+<div id="reader" class="hidden"></div>
+<button onclick="loadMachine()">Load Machine</button>
+</div>
+
+<div id="machineSection" class="hidden">
+
+<div class="tabs">
+<button class="tab-button active" onclick="showTab('historyTab', this)">Service History</button>
+<button class="tab-button" onclick="showTab('logTab', this)">Log Service</button>
+<button class="tab-button" onclick="showTab('locationTab', this)">Location</button>
+</div>
+
+<!-- HISTORY TAB -->
+<div id="historyTab">
+<div class="card">
+<h3>Service History</h3>
+<div id="history"></div>
+</div>
+</div>
+
+<!-- LOG SERVICE TAB -->
+<div id="logTab" class="hidden">
+<div class="card">
+<h3>Log Service</h3>
+<textarea id="details" placeholder="Work Performed"></textarea>
+<textarea id="partsUsed" placeholder="Parts Used"></textarea>
+<input id="downtime" type="number" placeholder="Downtime (hours)">
+<button onclick="addService()">Submit Log</button>
+</div>
+</div>
+
+<!-- LOCATION TAB -->
+<div id="locationTab" class="hidden">
+<div class="card">
+<h3>Current Location</h3>
+<div id="locationDisplay"></div>
+</div>
+
+<div class="card">
+<h3>Update Location (If Moved)</h3>
+<input id="updateAirport" placeholder="Airport">
+<input id="updateTerminal" placeholder="Terminal">
+<input id="updateCheckpoint" placeholder="Checkpoint">
+<input id="updateLane" placeholder="Lane">
+<textarea id="updateNotes" placeholder="Position Notes"></textarea>
+<button onclick="updateLocation()">Update Location</button>
+</div>
+</div>
+
+</div>
+</div>
+
+<script>
+let role = "";
+let currentMachine = "";
+let scanner = null;
+let loggedTech = null;
+let techList = [];
+
+/* -------- TECH MANAGEMENT -------- */
+async function getTechs() {
+    const res = await fetch('/posts'); // reuse posts endpoint to store techs temporarily
+    const data = await res.json();
+    return data.filter(p => p.type === 'tech') || [];
+}
+
+async function saveTech(tech) {
+    await fetch('/posts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, content })
-      });
+        body: JSON.stringify({ title: tech.name, content: tech.phone, type: 'tech' })
+    });
+}
 
-      form.reset();
-      loadPosts();
+async function addTechnician() {
+    const name = document.getElementById("newTechName").value;
+    const phone = document.getElementById("newTechPhone").value;
+    if (!name || !phone) return alert("Name and phone required");
+    await saveTech({ name, phone });
+    await populateTechDropdown();
+    alert("Technician Added");
+}
+
+async function populateTechDropdown() {
+    const select = document.getElementById("techSelect");
+    techList = await getTechs();
+    select.innerHTML = '<option value="">Select Technician</option>';
+    techList.forEach((t, i) => {
+        select.innerHTML += `<option value="${i}">${t.title}</option>`;
+    });
+}
+
+/* -------- LOGIN -------- */
+function toggleLoginFields() {
+    const selectedRole = document.getElementById("roleSelect").value;
+    document.getElementById("adminPassword").classList.toggle("hidden", selectedRole !== "Admin");
+    document.getElementById("techLogin").classList.toggle("hidden", selectedRole !== "Tech");
+}
+
+function login() {
+    role = document.getElementById("roleSelect").value;
+
+    if (role === "Admin") {
+        const pass = document.getElementById("adminPassword").value;
+        if (pass !== "1234") return alert("Incorrect Password");
+        document.getElementById("adminPanel").classList.remove("hidden");
+    }
+
+    if (role === "Tech") {
+        const index = document.getElementById("techSelect").value;
+        if (index === "") return alert("Select Technician");
+        loggedTech = techList[index];
+    }
+
+    document.getElementById("loginCard").classList.add("hidden");
+    document.getElementById("dashboard").classList.remove("hidden");
+
+    document.getElementById("userDisplay").innerText =
+        role === "Tech" ? `${loggedTech.title} (${loggedTech.content})` : role;
+}
+
+function logout() { currentMachine = ""; location.reload(); }
+
+/* -------- MACHINE -------- */
+async function createMachine() {
+    const id = document.getElementById("newMachineId").value.trim();
+    if (!id) return alert("Machine ID required");
+
+    const locationData = {
+        airport: airport.value,
+        terminal: terminal.value,
+        checkpoint: checkpoint.value,
+        lane: lane.value,
+        notes: notes.value
+    };
+
+    await fetch('/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: `machine-${id}`, content: JSON.stringify(locationData), type: 'machine' })
     });
 
-    loadPosts(); // initial load
-  </script>
+    alert("Machine Created");
+}
+
+async function loadMachine() {
+    const id = document.getElementById("machineId").value.trim();
+    if (!id) return alert("Enter a Machine ID");
+
+    const res = await fetch('/posts');
+    const data = await res.json();
+    const machine = data.find(p => p.title === `machine-${id}`);
+    if (!machine) return alert("Machine does not exist");
+
+    currentMachine = id;
+    document.getElementById("machineSection").classList.remove("hidden");
+    displayHistory();
+    loadLocation();
+}
+
+/* -------- SERVICE -------- */
+async function getLogs() {
+    const res = await fetch('/posts');
+    const data = await res.json();
+    return data.filter(p => p.title.startsWith(`log-${currentMachine}-`)) || [];
+}
+
+async function addService() {
+    if (role === "Supervisor") return alert("Supervisors cannot log service");
+    if (!currentMachine) return alert("Load a machine first");
+
+    const details = document.getElementById("details").value;
+    const parts = document.getElementById("partsUsed").value;
+    const downtime = document.getElementById("downtime").value || 0;
+
+    const timestamp = new Date().getTime();
+    const title = `log-${currentMachine}-${timestamp}`;
+
+    await fetch('/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            title,
+            content: JSON.stringify({
+                date: new Date().toLocaleString(),
+                tech: loggedTech ? loggedTech.title : "N/A",
+                phone: loggedTech ? loggedTech.content : "N/A",
+                details,
+                parts,
+                downtime
+            }),
+            type: 'log'
+        })
+    });
+
+    displayHistory();
+    document.getElementById("details").value = "";
+    document.getElementById("partsUsed").value = "";
+    document.getElementById("downtime").value = "";
+    alert("Service log submitted successfully!");
+}
+
+async function displayHistory() {
+    const historyEl = document.getElementById("history");
+    historyEl.innerHTML = "";
+    const logs = await getLogs();
+    logs.reverse().forEach(log => {
+        const data = JSON.parse(log.content);
+        historyEl.innerHTML += `
+            <div class="log">
+            <strong>${data.date}</strong><br>
+            Tech: ${data.tech}<br>
+            Phone: ${data.phone}<br>
+            Downtime: ${data.downtime} hrs<br>
+            Work: ${data.details}${data.parts ? "<br>Parts: " + data.parts : ""}
+            </div>
+        `;
+    });
+}
+
+/* -------- LOCATION -------- */
+async function loadLocation() {
+    const res = await fetch('/posts');
+    const data = await res.json();
+    const machine = data.find(p => p.title === `machine-${currentMachine}`);
+    const display = document.getElementById("locationDisplay");
+    if (!machine) return display.innerHTML = "No location set.";
+    const loc = JSON.parse(machine.content);
+    display.innerHTML = `
+        Airport: ${loc.airport}<br>
+        Terminal: ${loc.terminal}<br>
+        Checkpoint: ${loc.checkpoint}<br>
+        Lane: ${loc.lane}<br>
+        Notes: ${loc.notes}
+    `;
+}
+
+async function updateLocation() {
+    const updateData = {
+        airport: updateAirport.value,
+        terminal: updateTerminal.value,
+        checkpoint: updateCheckpoint.value,
+        lane: updateLane.value,
+        notes: updateNotes.value
+    };
+
+    const timestamp = new Date().getTime();
+    const title = `log-${currentMachine}-${timestamp}`;
+    await fetch('/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            title,
+            content: JSON.stringify({
+                date: new Date().toLocaleString(),
+                tech: loggedTech ? loggedTech.title : "N/A",
+                phone: loggedTech ? loggedTech.content : "N/A",
+                details: `Location updated: ${JSON.stringify(updateData)}`,
+                downtime: 0,
+                parts: ""
+            }),
+            type: 'log'
+        })
+    });
+
+    // Update machine location
+    await fetch('/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            title: `machine-${currentMachine}`,
+            content: JSON.stringify(updateData),
+            type: 'machine'
+        })
+    });
+
+    alert("Location Updated and logged in history");
+    loadLocation();
+    displayHistory();
+}
+
+/* -------- TABS -------- */
+function showTab(tabId, btn) {
+    document.getElementById("historyTab").classList.add("hidden");
+    document.getElementById("logTab").classList.add("hidden");
+    document.getElementById("locationTab").classList.add("hidden");
+    document.getElementById(tabId).classList.remove("hidden");
+    document.querySelectorAll(".tab-button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+}
+
+/* -------- QR -------- */
+function startScanner() {
+    const reader = document.getElementById("reader");
+    reader.classList.remove("hidden");
+    scanner = new Html5Qrcode("reader");
+    scanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+        qr => {
+            document.getElementById("machineId").value = qr;
+            scanner.stop();
+            reader.classList.add("hidden");
+        }
+    );
+}
+
+/* -------- INIT -------- */
+populateTechDropdown();
+</script>
+
 </body>
 </html>
