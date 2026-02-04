@@ -1,71 +1,58 @@
-import pg from 'pg';
-import express from 'express';
+// index.js
+import express from "express";
+import pkg from "pg";
+const { Pool } = pkg;
 
-const { Pool } = pg;
+const app = express();
+const PORT = process.env.PORT || 10000;
 
-// --- 1. Set up database connection ---
+// PostgreSQL connection
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL, // Render provides this automatically in your Environment
+  connectionString: process.env.DATABASE_URL, // make sure DATABASE_URL is set in Render
   ssl: {
-    rejectUnauthorized: false
-  }
+    rejectUnauthorized: false, // required for Render PostgreSQL
+  },
 });
 
-// --- 2. Test DB connection ---
-pool.connect()
-  .then(client => {
-    console.log('Connected to PostgreSQL!');
-    return client.query(`
+// Test DB connection and create table
+async function initDB() {
+  try {
+    const client = await pool.connect();
+    console.log("Connected to PostgreSQL!");
+
+    // Create posts table if it doesn't exist
+    await client.query(`
       CREATE TABLE IF NOT EXISTS posts (
         id SERIAL PRIMARY KEY,
         title TEXT NOT NULL,
-        content TEXT,
-        created_at TIMESTAMP DEFAULT NOW()
-      );
-    `)
-    .then(() => {
-      client.release();
-      console.log('Table "posts" is ready!');
-    })
-    .catch(err => {
-      client.release();
-      console.error('Error creating table:', err);
-    });
-  })
-  .catch(err => {
-    console.error('Failed to connect to PostgreSQL:', err);
-  });
+        content TEXT
+      )
+    `);
+    console.log('Table "posts" is ready!');
 
-// --- 3. Set up Express server ---
-const app = express();
-app.use(express.json());
+    client.release();
+  } catch (err) {
+    console.error("Failed to connect to PostgreSQL:", err);
+  }
+}
 
-// Example endpoint to fetch posts
-app.get('/posts', async (req, res) => {
+// Routes
+app.get("/", (req, res) => {
+  res.send("SpeedyReadr is live!");
+});
+
+app.get("/posts", async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM posts ORDER BY created_at DESC');
+    const result = await pool.query("SELECT * FROM posts ORDER BY id ASC");
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err);
+    res.status(500).send("Database error");
   }
 });
 
-// Example endpoint to add a post
-app.post('/posts', async (req, res) => {
-  const { title, content } = req.body;
-  try {
-    const result = await pool.query(
-      'INSERT INTO posts (title, content) VALUES ($1, $2) RETURNING *',
-      [title, content]
-    );
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// --- 4. Start server ---
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+// Start server
+app.listen(PORT, async () => {
   console.log(`SpeedyReadr server running on port ${PORT}`);
+  await initDB();
 });
