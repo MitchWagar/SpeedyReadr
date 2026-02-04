@@ -35,7 +35,6 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 
 <div class="container">
 
-<!-- LOGIN -->
 <div id="loginCard" class="card">
 <h3>Login</h3>
 
@@ -46,9 +45,7 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 </select>
 
 <div id="techLogin">
-<select id="techSelect">
-<option value="">Select Technician</option>
-</select>
+<select id="techSelect"></select>
 </div>
 
 <input type="password" id="adminPassword" class="hidden" placeholder="Admin Password">
@@ -56,9 +53,7 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 <button onclick="login()">Login</button>
 </div>
 
-<!-- ADMIN PANEL -->
 <div id="adminPanel" class="hidden">
-
 <div class="card">
 <h3>Add Technician</h3>
 <input id="newTechName" placeholder="Technician Name">
@@ -69,17 +64,10 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 <div class="card">
 <h3>Add New Machine</h3>
 <input id="newMachineId" placeholder="Machine ID">
-<input id="airport" placeholder="Airport">
-<input id="terminal" placeholder="Terminal">
-<input id="checkpoint" placeholder="Checkpoint">
-<input id="lane" placeholder="Lane">
-<textarea id="notes" placeholder="Position Notes"></textarea>
 <button onclick="createMachine()">Create Machine</button>
 </div>
-
 </div>
 
-<!-- DASHBOARD -->
 <div id="dashboard" class="hidden">
 
 <div class="card">
@@ -95,10 +83,8 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 <div class="tabs">
 <button class="tab-button active" onclick="showTab('historyTab', this)">Service History</button>
 <button class="tab-button" onclick="showTab('logTab', this)">Log Service</button>
-<button class="tab-button" onclick="showTab('locationTab', this)">Location</button>
 </div>
 
-<!-- HISTORY TAB -->
 <div id="historyTab">
 <div class="card">
 <h3>Service History</h3>
@@ -106,7 +92,6 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 </div>
 </div>
 
-<!-- LOG SERVICE TAB -->
 <div id="logTab" class="hidden">
 <div class="card">
 <h3>Log Service</h3>
@@ -117,208 +102,155 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 </div>
 </div>
 
-<!-- LOCATION TAB -->
-<div id="locationTab" class="hidden">
-<div class="card">
-<h3>Current Location</h3>
-<div id="locationDisplay"></div>
-</div>
-
-<div class="card">
-<h3>Update Location (If Moved)</h3>
-<input id="updateAirport" placeholder="Airport">
-<input id="updateTerminal" placeholder="Terminal">
-<input id="updateCheckpoint" placeholder="Checkpoint">
-<input id="updateLane" placeholder="Lane">
-<textarea id="updateNotes" placeholder="Position Notes"></textarea>
-<button onclick="updateLocation()">Update Location</button>
-</div>
-</div>
-
 </div>
 </div>
 
 <script>
+const API_BASE = "https://speedyreadr.onrender.com";
+
 let role="";
 let currentMachine="";
 let scanner=null;
 let loggedTech=null;
 
-/* -------- TECH MANAGEMENT -------- */
-function getTechs(){ return JSON.parse(localStorage.getItem("techs")) || []; }
-function saveTechs(list){ localStorage.setItem("techs", JSON.stringify(list)); }
-function addTechnician(){
-    const name=document.getElementById("newTechName").value;
-    const phone=document.getElementById("newTechPhone").value;
-    if(!name||!phone) return alert("Name and phone required");
-    let techs=getTechs();
-    techs.push({name,phone});
-    saveTechs(techs);
-    populateTechDropdown();
-    alert("Technician Added");
-}
-function populateTechDropdown(){
-    const select=document.getElementById("techSelect");
-    const techs=getTechs();
+/* -------- TECHS -------- */
+
+async function populateTechDropdown(){
+    const res = await fetch(`${API_BASE}/techs`);
+    const techs = await res.json();
+
+    const select = document.getElementById("techSelect");
     select.innerHTML='<option value="">Select Technician</option>';
-    techs.forEach((t,i)=>{
-        select.innerHTML+=`<option value="${i}">${t.name}</option>`;
+
+    techs.forEach(t=>{
+        select.innerHTML+=`<option value="${t.id}" data-phone="${t.phone}">${t.name}</option>`;
     });
+}
+
+async function addTechnician(){
+    const name=newTechName.value;
+    const phone=newTechPhone.value;
+
+    await fetch(`${API_BASE}/techs`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({name,phone})
+    });
+
+    alert("Technician Added");
+    populateTechDropdown();
 }
 
 /* -------- LOGIN -------- */
+
 function toggleLoginFields(){
-    const selectedRole=document.getElementById("roleSelect").value;
-    document.getElementById("adminPassword").classList.toggle("hidden",selectedRole!=="Admin");
-    document.getElementById("techLogin").classList.toggle("hidden",selectedRole!=="Tech");
+    const selectedRole=roleSelect.value;
+    adminPassword.classList.toggle("hidden",selectedRole!=="Admin");
+    techLogin.classList.toggle("hidden",selectedRole!=="Tech");
 }
+
 function login(){
-    role=document.getElementById("roleSelect").value;
+    role=roleSelect.value;
 
     if(role==="Admin"){
-        const pass=document.getElementById("adminPassword").value;
-        if(pass!=="1234") return alert("Incorrect Password");
-        document.getElementById("adminPanel").classList.remove("hidden");
+        if(adminPassword.value!=="1234") return alert("Incorrect Password");
+        adminPanel.classList.remove("hidden");
     }
 
     if(role==="Tech"){
-        const index=document.getElementById("techSelect").value;
-        if(index==="") return alert("Select Technician");
-        loggedTech=getTechs()[index];
+        const selected=techSelect.options[techSelect.selectedIndex];
+        if(!selected.value) return alert("Select Technician");
+        loggedTech={
+            id:selected.value,
+            name:selected.text,
+            phone:selected.dataset.phone
+        };
     }
 
-    document.getElementById("loginCard").classList.add("hidden");
-    document.getElementById("dashboard").classList.remove("hidden");
-
-    document.getElementById("userDisplay").innerText=
-        role==="Tech"?`${loggedTech.name} (${loggedTech.phone})`:role;
+    loginCard.classList.add("hidden");
+    dashboard.classList.remove("hidden");
+    userDisplay.innerText=role==="Tech"?`${loggedTech.name} (${loggedTech.phone})`:role;
 }
-function logout(){ currentMachine=""; location.reload(); }
+
+function logout(){ location.reload(); }
 
 /* -------- MACHINE -------- */
-function createMachine(){
-    const id=document.getElementById("newMachineId").value.trim();
-    if(!id) return alert("Machine ID required");
 
-    localStorage.setItem(id, JSON.stringify([]));
-    localStorage.setItem(id+"_location", JSON.stringify({
-        airport: airport.value,
-        terminal: terminal.value,
-        checkpoint: checkpoint.value,
-        lane: lane.value,
-        notes: notes.value
-    }));
+async function createMachine(){
+    const machine_id=newMachineId.value;
+
+    await fetch(`${API_BASE}/machines`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({machine_id})
+    });
 
     alert("Machine Created");
 }
-function loadMachine(){
-    const id=document.getElementById("machineId").value.trim();
-    if(!id) return alert("Enter a Machine ID");
-    if(!localStorage.getItem(id)) return alert("Machine does not exist");
 
-    currentMachine=id;
-    document.getElementById("machineSection").classList.remove("hidden");
+function loadMachine(){
+    currentMachine=machineId.value.trim();
+    if(!currentMachine) return alert("Enter Machine ID");
+
+    machineSection.classList.remove("hidden");
     displayHistory();
-    loadLocation();
 }
 
 /* -------- SERVICE -------- */
-function getLogs(){ return JSON.parse(localStorage.getItem(currentMachine)) || []; }
 
-function addService(){
+async function addService(){
     if(role==="Supervisor") return alert("Supervisors cannot log service");
-    if(!currentMachine) return alert("Load a machine first");
 
-    const logs=getLogs();
-    logs.push({
-        date:new Date().toLocaleString(),
-        tech:loggedTech ? loggedTech.name : "N/A",
-        phone:loggedTech ? loggedTech.phone : "N/A",
-        details:document.getElementById("details").value,
-        parts:document.getElementById("partsUsed").value,
-        downtime:document.getElementById("downtime").value||0
+    await fetch(`${API_BASE}/logs`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+            machine_id:currentMachine,
+            tech_name:loggedTech.name,
+            tech_phone:loggedTech.phone,
+            details:details.value,
+            parts:partsUsed.value,
+            downtime:downtime.value||0
+        })
     });
 
-    localStorage.setItem(currentMachine, JSON.stringify(logs));
+    alert("Service log submitted");
+    details.value="";
+    partsUsed.value="";
+    downtime.value="";
     displayHistory();
-
-    alert("Service log submitted successfully!");
-
-    document.getElementById("details").value="";
-    document.getElementById("partsUsed").value="";
-    document.getElementById("downtime").value="";
 }
 
-function displayHistory(){
-    const history=document.getElementById("history");
+async function displayHistory(){
+    const res = await fetch(`${API_BASE}/logs/${currentMachine}`);
+    const logs = await res.json();
+
     history.innerHTML="";
-    const logs=[...getLogs()].reverse();
+
     logs.forEach(log=>{
         history.innerHTML+=`
         <div class="log">
-        <strong>${log.date}</strong><br>
-        Tech: ${log.tech}<br>
-        Phone: ${log.phone}<br>
+        <strong>${new Date(log.created_at).toLocaleString()}</strong><br>
+        Tech: ${log.tech_name}<br>
+        Phone: ${log.tech_phone}<br>
         Downtime: ${log.downtime} hrs<br>
-        Work: ${log.details}${log.parts ? "<br>Parts: " + log.parts : ""}
+        Work: ${log.details}${log.parts ? "<br>Parts: "+log.parts : ""}
         </div>`;
     });
 }
 
-/* -------- LOCATION -------- */
-function loadLocation(){
-    const data=JSON.parse(localStorage.getItem(currentMachine+"_location"));
-    const display=document.getElementById("locationDisplay");
-    if(!data) return display.innerHTML="No location set.";
-    display.innerHTML=`
-        Airport: ${data.airport}<br>
-        Terminal: ${data.terminal}<br>
-        Checkpoint: ${data.checkpoint}<br>
-        Lane: ${data.lane}<br>
-        Notes: ${data.notes}`;
-}
-
-function updateLocation(){
-    const oldData=JSON.parse(localStorage.getItem(currentMachine+"_location")) || {};
-    const newData={
-        airport:updateAirport.value,
-        terminal:updateTerminal.value,
-        checkpoint:updateCheckpoint.value,
-        lane:updateLane.value,
-        notes:updateNotes.value
-    };
-
-    localStorage.setItem(currentMachine+"_location", JSON.stringify(newData));
-
-    // Add location change to service history
-    const logs=getLogs();
-    logs.push({
-        date:new Date().toLocaleString(),
-        tech:loggedTech ? loggedTech.name : "N/A",
-        phone:loggedTech ? loggedTech.phone : "N/A",
-        details:`Machine moved from: Airport: ${oldData.airport || ""}, Terminal: ${oldData.terminal || ""}, Checkpoint: ${oldData.checkpoint || ""}, Lane: ${oldData.lane || ""}, Notes: ${oldData.notes || ""} <br>
-        To: Airport: ${newData.airport}, Terminal: ${newData.terminal}, Checkpoint: ${newData.checkpoint}, Lane: ${newData.lane}, Notes: ${newData.notes}`,
-        downtime:0,
-        parts:"" // remove parts for location move
-    });
-    localStorage.setItem(currentMachine, JSON.stringify(logs));
-
-    alert("Location Updated and logged in history");
-    loadLocation();
-    displayHistory();
-}
-
 /* -------- TABS -------- */
+
 function showTab(tabId,btn){
-    document.getElementById("historyTab").classList.add("hidden");
-    document.getElementById("logTab").classList.add("hidden");
-    document.getElementById("locationTab").classList.add("hidden");
+    historyTab.classList.add("hidden");
+    logTab.classList.add("hidden");
     document.getElementById(tabId).classList.remove("hidden");
     document.querySelectorAll(".tab-button").forEach(b=>b.classList.remove("active"));
     btn.classList.add("active");
 }
 
 /* -------- QR -------- */
+
 function startScanner(){
     const reader=document.getElementById("reader");
     reader.classList.remove("hidden");
@@ -327,14 +259,13 @@ function startScanner(){
         {facingMode:"environment"},
         {fps:10,qrbox:250},
         qr=>{
-            document.getElementById("machineId").value=qr;
+            machineId.value=qr;
             scanner.stop();
             reader.classList.add("hidden");
         }
     );
 }
 
-/* -------- INIT -------- */
 populateTechDropdown();
 </script>
 
