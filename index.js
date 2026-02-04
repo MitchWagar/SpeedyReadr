@@ -1,56 +1,71 @@
-// index.js
-import pkg from 'pg';
-import http from 'http';
+import pg from 'pg';
+import express from 'express';
 
-const { Pool } = pkg;
+const { Pool } = pg;
 
-// Connect to your database
+// --- 1. Set up database connection ---
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_URL, // Render provides this automatically in your Environment
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
 
-// Create a table if it doesn't exist
-async function setupDatabase() {
-  try {
-    await pool.query(`
+// --- 2. Test DB connection ---
+pool.connect()
+  .then(client => {
+    console.log('Connected to PostgreSQL!');
+    return client.query(`
       CREATE TABLE IF NOT EXISTS posts (
         id SERIAL PRIMARY KEY,
         title TEXT NOT NULL,
         content TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-    console.log('Table "posts" is ready!');
-  } catch (err) {
-    console.error('Error creating table:', err);
-  }
-}
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `)
+    .then(() => {
+      client.release();
+      console.log('Table "posts" is ready!');
+    })
+    .catch(err => {
+      client.release();
+      console.error('Error creating table:', err);
+    });
+  })
+  .catch(err => {
+    console.error('Failed to connect to PostgreSQL:', err);
+  });
 
-// Test database connection
-async function testDb() {
+// --- 3. Set up Express server ---
+const app = express();
+app.use(express.json());
+
+// Example endpoint to fetch posts
+app.get('/posts', async (req, res) => {
   try {
-    const res = await pool.query('SELECT NOW()');
-    console.log('Database connected! Current time:', res.rows[0].now);
+    const result = await pool.query('SELECT * FROM posts ORDER BY created_at DESC');
+    res.json(result.rows);
   } catch (err) {
-    console.error('Database connection error:', err);
+    res.status(500).json({ error: err.message });
   }
-}
+});
 
-// Call both functions at startup
-(async () => {
-  await testDb();
-  await setupDatabase();
-})();
+// Example endpoint to add a post
+app.post('/posts', async (req, res) => {
+  const { title, content } = req.body;
+  try {
+    const result = await pool.query(
+      'INSERT INTO posts (title, content) VALUES ($1, $2) RETURNING *',
+      [title, content]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
-// Basic HTTP server so Render can keep the service alive
+// --- 4. Start server ---
 const PORT = process.env.PORT || 3000;
-
-const server = http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('SpeedyReadr is running!\n');
+app.listen(PORT, () => {
+  console.log(`SpeedyReadr server running on port ${PORT}`);
 });
-
-server.listen(PORT, () => {
-  console.log(`Server is listening on port ${PORT}`);
-});
-
