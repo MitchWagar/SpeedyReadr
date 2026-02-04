@@ -139,75 +139,69 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 </div>
 
 <script>
-let role = "";
-let currentMachine = "";
-let scanner = null;
-let loggedTech = null;
+let role="";
+let currentMachine="";
+let scanner=null;
+let loggedTech=null;
 
 /* -------- TECH MANAGEMENT -------- */
-function getTechs() { return JSON.parse(localStorage.getItem("techs")) || []; }
-function saveTechs(list) { localStorage.setItem("techs", JSON.stringify(list)); }
-function addTechnician() {
-    const name = document.getElementById("newTechName").value;
-    const phone = document.getElementById("newTechPhone").value;
-    if (!name || !phone) return alert("Name and phone required");
-    let techs = getTechs();
-    techs.push({ name, phone });
+function getTechs(){ return JSON.parse(localStorage.getItem("techs")) || []; }
+function saveTechs(list){ localStorage.setItem("techs", JSON.stringify(list)); }
+function addTechnician(){
+    const name=document.getElementById("newTechName").value;
+    const phone=document.getElementById("newTechPhone").value;
+    if(!name||!phone) return alert("Name and phone required");
+    let techs=getTechs();
+    techs.push({name,phone});
     saveTechs(techs);
     populateTechDropdown();
     alert("Technician Added");
 }
-function populateTechDropdown() {
-    const select = document.getElementById("techSelect");
-    const techs = getTechs();
-    select.innerHTML = '<option value="">Select Technician</option>';
-    techs.forEach((t, i) => {
-        select.innerHTML += `<option value="${i}">${t.name}</option>`;
+function populateTechDropdown(){
+    const select=document.getElementById("techSelect");
+    const techs=getTechs();
+    select.innerHTML='<option value="">Select Technician</option>';
+    techs.forEach((t,i)=>{
+        select.innerHTML+=`<option value="${i}">${t.name}</option>`;
     });
 }
 
 /* -------- LOGIN -------- */
-function toggleLoginFields() {
-    const selectedRole = document.getElementById("roleSelect").value;
-    document.getElementById("adminPassword").classList.toggle("hidden", selectedRole !== "Admin");
-    document.getElementById("techLogin").classList.toggle("hidden", selectedRole !== "Tech");
+function toggleLoginFields(){
+    const selectedRole=document.getElementById("roleSelect").value;
+    document.getElementById("adminPassword").classList.toggle("hidden",selectedRole!=="Admin");
+    document.getElementById("techLogin").classList.toggle("hidden",selectedRole!=="Tech");
 }
+function login(){
+    role=document.getElementById("roleSelect").value;
 
-function login() {
-    role = document.getElementById("roleSelect").value;
-
-    if (role === "Admin") {
-        const pass = document.getElementById("adminPassword").value;
-        if (pass !== "1234") return alert("Incorrect Password");
+    if(role==="Admin"){
+        const pass=document.getElementById("adminPassword").value;
+        if(pass!=="1234") return alert("Incorrect Password");
         document.getElementById("adminPanel").classList.remove("hidden");
     }
 
-    if (role === "Tech") {
-        const index = document.getElementById("techSelect").value;
-        if (index === "") return alert("Select Technician");
-        loggedTech = getTechs()[index];
+    if(role==="Tech"){
+        const index=document.getElementById("techSelect").value;
+        if(index==="") return alert("Select Technician");
+        loggedTech=getTechs()[index];
     }
 
     document.getElementById("loginCard").classList.add("hidden");
     document.getElementById("dashboard").classList.remove("hidden");
 
-    document.getElementById("userDisplay").innerText =
-        role === "Tech" ? `${loggedTech.name} (${loggedTech.phone})` : role;
+    document.getElementById("userDisplay").innerText=
+        role==="Tech"?`${loggedTech.name} (${loggedTech.phone})`:role;
 }
-
-function logout() {
-    currentMachine = "";
-    loggedTech = null;
-    location.reload();
-}
+function logout(){ currentMachine=""; location.reload(); }
 
 /* -------- MACHINE -------- */
-function createMachine() {
-    const id = document.getElementById("newMachineId").value.trim();
-    if (!id) return alert("Machine ID required");
+function createMachine(){
+    const id=document.getElementById("newMachineId").value.trim();
+    if(!id) return alert("Machine ID required");
 
     localStorage.setItem(id, JSON.stringify([]));
-    localStorage.setItem(id + "_location", JSON.stringify({
+    localStorage.setItem(id+"_location", JSON.stringify({
         airport: airport.value,
         terminal: terminal.value,
         checkpoint: checkpoint.value,
@@ -217,33 +211,32 @@ function createMachine() {
 
     alert("Machine Created");
 }
+function loadMachine(){
+    const id=document.getElementById("machineId").value.trim();
+    if(!id) return alert("Enter a Machine ID");
+    if(!localStorage.getItem(id)) return alert("Machine does not exist");
 
-function loadMachine() {
-    const id = document.getElementById("machineId").value.trim();
-    if (!id) return alert("Enter a Machine ID");
-    if (!localStorage.getItem(id)) return alert("Machine does not exist");
-
-    currentMachine = id;
+    currentMachine=id;
     document.getElementById("machineSection").classList.remove("hidden");
     displayHistory();
     loadLocation();
 }
 
 /* -------- SERVICE -------- */
-function getLogs() { return JSON.parse(localStorage.getItem(currentMachine)) || []; }
+function getLogs(){ return JSON.parse(localStorage.getItem(currentMachine)) || []; }
 
-function addService() {
-    if (role === "Supervisor") return alert("Supervisors cannot log service");
-    if (!currentMachine) return alert("Load a machine first");
+function addService(){
+    if(role==="Supervisor") return alert("Supervisors cannot log service");
+    if(!currentMachine) return alert("Load a machine first");
 
-    const logs = getLogs();
+    const logs=getLogs();
     logs.push({
-        date: new Date().toLocaleString(),
-        tech: loggedTech ? loggedTech.name : "N/A",
-        phone: loggedTech ? loggedTech.phone : "N/A",
-        details: document.getElementById("details").value,
-        parts: document.getElementById("partsUsed").value,
-        downtime: document.getElementById("downtime").value || 0
+        date:new Date().toLocaleString(),
+        tech:loggedTech ? loggedTech.name : "N/A",
+        phone:loggedTech ? loggedTech.phone : "N/A",
+        details:document.getElementById("details").value,
+        parts:document.getElementById("partsUsed").value,
+        downtime:document.getElementById("downtime").value||0
     });
 
     localStorage.setItem(currentMachine, JSON.stringify(logs));
@@ -251,33 +244,33 @@ function addService() {
 
     alert("Service log submitted successfully!");
 
-    document.getElementById("details").value = "";
-    document.getElementById("partsUsed").value = "";
-    document.getElementById("downtime").value = "";
+    document.getElementById("details").value="";
+    document.getElementById("partsUsed").value="";
+    document.getElementById("downtime").value="";
 }
 
-function displayHistory() {
-    const history = document.getElementById("history");
-    history.innerHTML = "";
-    const logs = [...getLogs()].reverse();
-    logs.forEach(log => {
-        history.innerHTML += `
+function displayHistory(){
+    const history=document.getElementById("history");
+    history.innerHTML="";
+    const logs=[...getLogs()].reverse();
+    logs.forEach(log=>{
+        history.innerHTML+=`
         <div class="log">
-            <strong>${log.date}</strong><br>
-            Tech: ${log.tech}<br>
-            Phone: ${log.phone}<br>
-            Downtime: ${log.downtime} hrs<br>
-            Work: ${log.details}${log.parts ? "<br>Parts: " + log.parts : ""}
+        <strong>${log.date}</strong><br>
+        Tech: ${log.tech}<br>
+        Phone: ${log.phone}<br>
+        Downtime: ${log.downtime} hrs<br>
+        Work: ${log.details}${log.parts ? "<br>Parts: " + log.parts : ""}
         </div>`;
     });
 }
 
 /* -------- LOCATION -------- */
-function loadLocation() {
-    const data = JSON.parse(localStorage.getItem(currentMachine + "_location"));
-    const display = document.getElementById("locationDisplay");
-    if (!data) return display.innerHTML = "No location set.";
-    display.innerHTML = `
+function loadLocation(){
+    const data=JSON.parse(localStorage.getItem(currentMachine+"_location"));
+    const display=document.getElementById("locationDisplay");
+    if(!data) return display.innerHTML="No location set.";
+    display.innerHTML=`
         Airport: ${data.airport}<br>
         Terminal: ${data.terminal}<br>
         Checkpoint: ${data.checkpoint}<br>
@@ -285,27 +278,28 @@ function loadLocation() {
         Notes: ${data.notes}`;
 }
 
-function updateLocation() {
-    const oldData = JSON.parse(localStorage.getItem(currentMachine + "_location")) || {};
-    const newData = {
-        airport: updateAirport.value,
-        terminal: updateTerminal.value,
-        checkpoint: updateCheckpoint.value,
-        lane: updateLane.value,
-        notes: updateNotes.value
+function updateLocation(){
+    const oldData=JSON.parse(localStorage.getItem(currentMachine+"_location")) || {};
+    const newData={
+        airport:updateAirport.value,
+        terminal:updateTerminal.value,
+        checkpoint:updateCheckpoint.value,
+        lane:updateLane.value,
+        notes:updateNotes.value
     };
 
-    localStorage.setItem(currentMachine + "_location", JSON.stringify(newData));
+    localStorage.setItem(currentMachine+"_location", JSON.stringify(newData));
 
-    const logs = getLogs();
+    // Add location change to service history
+    const logs=getLogs();
     logs.push({
-        date: new Date().toLocaleString(),
-        tech: loggedTech ? loggedTech.name : "N/A",
-        phone: loggedTech ? loggedTech.phone : "N/A",
-        details: `Machine moved from: Airport: ${oldData.airport || ""}, Terminal: ${oldData.terminal || ""}, Checkpoint: ${oldData.checkpoint || ""}, Lane: ${oldData.lane || ""}, Notes: ${oldData.notes || ""} <br>
+        date:new Date().toLocaleString(),
+        tech:loggedTech ? loggedTech.name : "N/A",
+        phone:loggedTech ? loggedTech.phone : "N/A",
+        details:`Machine moved from: Airport: ${oldData.airport || ""}, Terminal: ${oldData.terminal || ""}, Checkpoint: ${oldData.checkpoint || ""}, Lane: ${oldData.lane || ""}, Notes: ${oldData.notes || ""} <br>
         To: Airport: ${newData.airport}, Terminal: ${newData.terminal}, Checkpoint: ${newData.checkpoint}, Lane: ${newData.lane}, Notes: ${newData.notes}`,
-        downtime: 0,
-        parts: ""
+        downtime:0,
+        parts:"" // remove parts for location move
     });
     localStorage.setItem(currentMachine, JSON.stringify(logs));
 
@@ -315,25 +309,25 @@ function updateLocation() {
 }
 
 /* -------- TABS -------- */
-function showTab(tabId, btn) {
+function showTab(tabId,btn){
     document.getElementById("historyTab").classList.add("hidden");
     document.getElementById("logTab").classList.add("hidden");
     document.getElementById("locationTab").classList.add("hidden");
     document.getElementById(tabId).classList.remove("hidden");
-    document.querySelectorAll(".tab-button").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab-button").forEach(b=>b.classList.remove("active"));
     btn.classList.add("active");
 }
 
 /* -------- QR -------- */
-function startScanner() {
-    const reader = document.getElementById("reader");
+function startScanner(){
+    const reader=document.getElementById("reader");
     reader.classList.remove("hidden");
-    scanner = new Html5Qrcode("reader");
+    scanner=new Html5Qrcode("reader");
     scanner.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: 250 },
-        qr => {
-            document.getElementById("machineId").value = qr;
+        {facingMode:"environment"},
+        {fps:10,qrbox:250},
+        qr=>{
+            document.getElementById("machineId").value=qr;
             scanner.stop();
             reader.classList.add("hidden");
         }
@@ -346,3 +340,4 @@ populateTechDropdown();
 
 </body>
 </html>
+
