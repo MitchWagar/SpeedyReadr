@@ -1,14 +1,11 @@
 {
   "name": "speedyreadr",
   "version": "1.0.0",
-  "description": "SpeedyReadr backend",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
-  "engines": {
-    "node": "18.x"
-  },
-  "dependencies": {}
+  "dependencies": {
+    "pg": "^8.11.1"
+  }
 }
-
