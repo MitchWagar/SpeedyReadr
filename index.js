@@ -4,12 +4,29 @@ import http from 'http';
 
 const { Pool } = pkg;
 
-// Create a connection pool using your DATABASE_URL
+// Connect to your database
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
-// Simple function to test database connection
+// Create a table if it doesn't exist
+async function setupDatabase() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS posts (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        content TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('Table "posts" is ready!');
+  } catch (err) {
+    console.error('Error creating table:', err);
+  }
+}
+
+// Test database connection
 async function testDb() {
   try {
     const res = await pool.query('SELECT NOW()');
@@ -19,8 +36,11 @@ async function testDb() {
   }
 }
 
-// Call testDb once at startup
-testDb();
+// Call both functions at startup
+(async () => {
+  await testDb();
+  await setupDatabase();
+})();
 
 // Basic HTTP server so Render can keep the service alive
 const PORT = process.env.PORT || 3000;
@@ -33,3 +53,4 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, () => {
   console.log(`Server is listening on port ${PORT}`);
 });
+
