@@ -1,3 +1,4 @@
+```javascript
 // index.js
 const express = require("express");
 const cors = require("cors");
@@ -104,6 +105,11 @@ app.delete("/techs/:id", async (req, res) => {
 });
 
 // ---------- MACHINES ----------
+app.get("/machines", async (req, res) => {
+    const result = await pool.query("SELECT * FROM machines ORDER BY machine_id ASC");
+    res.json(result.rows);
+});
+
 app.get("/machines/:id", async (req, res) => {
     const { id } = req.params;
     const result = await pool.query("SELECT * FROM machines WHERE machine_id=$1", [id]);
@@ -120,6 +126,41 @@ app.post("/machines", async (req, res) => {
             [machine_id, airport, terminal, checkpoint, lane, notes]
         );
         res.json(result.rows[0]);
+    } catch(err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+// Add PUT endpoint for editing machines
+app.put("/machines/:id", async (req, res) => {
+    const { id } = req.params;
+    const { airport, terminal, checkpoint, lane, notes } = req.body;
+    
+    try {
+        const result = await pool.query(
+            `UPDATE machines SET airport=$1, terminal=$2, checkpoint=$3, lane=$4, notes=$5
+             WHERE machine_id=$6 RETURNING *`,
+            [airport, terminal, checkpoint, lane, notes, id]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Machine not found" });
+        }
+        res.json(result.rows[0]);
+    } catch(err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+// Add DELETE endpoint for deleting machines
+app.delete("/machines/:id", async (req, res) => {
+    const { id } = req.params;
+    
+    try {
+        const result = await pool.query("DELETE FROM machines WHERE machine_id=$1 RETURNING *", [id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Machine not found" });
+        }
+        res.json({ message: "Machine deleted successfully" });
     } catch(err) {
         res.status(400).json({ error: err.message });
     }
