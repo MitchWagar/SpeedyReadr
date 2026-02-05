@@ -15,7 +15,6 @@ const pool = new Pool({
 
 // ---------- CREATE TABLES ----------
 async function initDB() {
-    // Technicians
     await pool.query(`
         CREATE TABLE IF NOT EXISTS technicians (
             id SERIAL PRIMARY KEY,
@@ -24,7 +23,6 @@ async function initDB() {
         );
     `);
 
-    // Machines
     await pool.query(`
         CREATE TABLE IF NOT EXISTS machines (
             id SERIAL PRIMARY KEY,
@@ -37,7 +35,6 @@ async function initDB() {
         );
     `);
 
-    // Service logs with Work Order # and separate parts
     await pool.query(`
         CREATE TABLE IF NOT EXISTS service_logs (
             id SERIAL PRIMARY KEY,
@@ -45,13 +42,8 @@ async function initDB() {
             date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             tech_name TEXT,
             tech_phone TEXT,
-            work_order TEXT,
             details TEXT,
-            part1 TEXT,
-            part2 TEXT,
-            part3 TEXT,
-            part4 TEXT,
-            part5 TEXT,
+            parts TEXT,
             downtime NUMERIC DEFAULT 0
         );
     `);
@@ -63,12 +55,12 @@ initDB().catch(console.error);
 // ---------- TECHNICIANS ----------
 app.get("/techs", async (req, res) => {
     const result = await pool.query("SELECT * FROM technicians ORDER BY id ASC");
-    res.json(result.rows);
+    res.json(result.rows); // returns flat array [{id,name,phone}, ...]
 });
 
 app.post("/techs", async (req, res) => {
     const { name, phone } = req.body;
-    if (!name || !phone) return res.status(400).json({ error: "Name and phone required" });
+    if(!name || !phone) return res.status(400).json({ error: "Name and phone required" });
     const result = await pool.query(
         "INSERT INTO technicians (name, phone) VALUES ($1, $2) RETURNING *",
         [name, phone]
@@ -80,7 +72,7 @@ app.post("/techs", async (req, res) => {
 app.get("/machines/:id", async (req, res) => {
     const { id } = req.params;
     const result = await pool.query("SELECT * FROM machines WHERE machine_id=$1", [id]);
-    if (result.rows.length === 0) return res.status(404).json({ error: "Machine not found" });
+    if(result.rows.length === 0) return res.status(404).json({ error: "Machine not found" });
     res.json(result.rows[0]);
 });
 
@@ -93,7 +85,7 @@ app.post("/machines", async (req, res) => {
             [machine_id, airport, terminal, checkpoint, lane, notes]
         );
         res.json(result.rows[0]);
-    } catch (err) {
+    } catch(err) {
         res.status(400).json({ error: err.message });
     }
 });
@@ -113,35 +105,18 @@ app.put("/machines/:id/location", async (req, res) => {
 app.get("/logs/:machine_id", async (req, res) => {
     const { machine_id } = req.params;
     const result = await pool.query(
-        `SELECT * FROM service_logs 
-         WHERE machine_id=$1 
-         ORDER BY date DESC`,
+        "SELECT * FROM service_logs WHERE machine_id=$1 ORDER BY date DESC",
         [machine_id]
     );
     res.json(result.rows);
 });
 
 app.post("/logs", async (req, res) => {
-    const {
-        machine_id,
-        tech_name,
-        tech_phone,
-        work_order,
-        details,
-        part1,
-        part2,
-        part3,
-        part4,
-        part5,
-        downtime
-    } = req.body;
-
+    const { machine_id, tech_name, tech_phone, details, parts, downtime } = req.body;
     const result = await pool.query(
-        `INSERT INTO service_logs 
-         (machine_id, tech_name, tech_phone, work_order, details, part1, part2, part3, part4, part5, downtime)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-         RETURNING *`,
-        [machine_id, tech_name, tech_phone, work_order, details, part1, part2, part3, part4, part5, downtime || 0]
+        `INSERT INTO service_logs (machine_id, tech_name, tech_phone, details, parts, downtime)
+         VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+        [machine_id, tech_name, tech_phone, details, parts, downtime || 0]
     );
     res.json(result.rows[0]);
 });
