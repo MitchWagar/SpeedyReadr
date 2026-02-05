@@ -36,7 +36,7 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 <!-- LOGIN -->
 <div id="loginCard" class="card">
 <h3>Login</h3>
-<select id="roleSelect" onchange="toggleLoginFields()">
+<select id="roleSelect">
 <option value="Tech">Technician</option>
 <option value="Supervisor">Supervisor</option>
 <option value="Admin">Admin</option>
@@ -50,39 +50,6 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 
 <input type="password" id="adminPassword" class="hidden" placeholder="Admin Password">
 <button onclick="login()">Login</button>
-</div>
-
-<!-- ADMIN PANEL -->
-<div id="adminPanel" class="hidden">
-
-<div class="card">
-<h3>Add Technician</h3>
-<input id="newTechName" placeholder="Technician Name">
-<input id="newTechPhone" placeholder="Phone Number">
-<button onclick="addTechnician()">Add Technician</button>
-</div>
-
-<div class="card">
-<h3>Technicians</h3>
-<div id="techList"></div>
-</div>
-
-<div class="card">
-<h3>Add New Machine</h3>
-<input id="newMachineId" placeholder="Machine ID">
-<input id="airport" placeholder="Airport">
-<input id="terminal" placeholder="Terminal">
-<input id="checkpoint" placeholder="Checkpoint">
-<input id="lane" placeholder="Lane">
-<textarea id="notes" placeholder="Position Notes"></textarea>
-<button onclick="createMachine()">Create Machine</button>
-</div>
-
-<div class="card">
-<h3>Machines</h3>
-<div id="machineList"></div>
-</div>
-
 </div>
 
 <!-- DASHBOARD -->
@@ -145,7 +112,7 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 </div>
 
 <script>
-const API = "https://speedyreadr.onrender.com"; // replace with your server URL
+const API = "https://speedyreadr.onrender.com";
 let role="", currentMachine="", loggedTech=null, scanner=null;
 
 // ---------- TECH ----------
@@ -163,129 +130,12 @@ async function populateTechDropdown(){
     });
 }
 
-// ---------- ADMIN FUNCTIONS ----------
-async function addTechnician(){
-    const name=document.getElementById("newTechName").value;
-    const phone=document.getElementById("newTechPhone").value;
-    if(!name||!phone) return alert("Name and phone required");
-    const res = await fetch(API+"/techs", {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({name,phone})
-    });
-    const data = await res.json();
-    alert("Technician Added: "+data.name);
-    populateTechDropdown();
-    loadTechs();
-}
-
-// Load and manage technicians
-async function loadTechs() {
-    const techs = await getTechs();
-    const container = document.getElementById("techList");
-    container.innerHTML = techs.map(t => `
-        <div class="log">
-            ${t.name} (${t.phone})
-            <button onclick="editTech(${t.id},'${t.name}','${t.phone}')">Edit</button>
-            <button onclick="deleteTech(${t.id})">Delete</button>
-        </div>
-    `).join('');
-}
-
-async function editTech(id,name,phone){
-    const newName = prompt("Edit Name",name);
-    const newPhone = prompt("Edit Phone",phone);
-    if(!newName||!newPhone) return;
-    await fetch(`${API}/techs/${id}`,{
-        method:"PUT",
-        headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({name:newName,phone:newPhone})
-    });
-    alert("Technician updated");
-    populateTechDropdown();
-    loadTechs();
-}
-
-async function deleteTech(id){
-    if(!confirm("Delete this technician?")) return;
-    await fetch(`${API}/techs/${id}`,{method:"DELETE"});
-    alert("Technician deleted");
-    populateTechDropdown();
-    loadTechs();
-}
-
-// ---------- MACHINES ----------
-async function createMachine(){
-    const machine_id=document.getElementById("newMachineId").value.trim();
-    if(!machine_id) return alert("Machine ID required");
-    const data = {
-        machine_id,
-        airport: document.getElementById("airport").value,
-        terminal: document.getElementById("terminal").value,
-        checkpoint: document.getElementById("checkpoint").value,
-        lane: document.getElementById("lane").value,
-        notes: document.getElementById("notes").value
-    };
-    const res = await fetch(API+"/machines", {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body: JSON.stringify(data)
-    });
-    const result = await res.json();
-    if(result.error) return alert(result.error);
-    alert("Machine Created: "+result.machine_id);
-    loadMachines();
-}
-
-// Load and manage machines
-async function loadMachines(){
-    const res = await fetch(API+"/machinesList");
-    const machines = await res.json();
-    const container = document.getElementById("machineList");
-    container.innerHTML = machines.map(m => `
-        <div class="log">
-            ${m.machine_id} - ${m.airport||""} / ${m.terminal||""} / ${m.checkpoint||""} / ${m.lane||""}
-            <button onclick="editMachine('${m.machine_id}')">Edit</button>
-            <button onclick="deleteMachine('${m.machine_id}')">Delete</button>
-        </div>
-    `).join('');
-}
-
-async function editMachine(id){
-    const airport=prompt("Airport?");
-    const terminal=prompt("Terminal?");
-    const checkpoint=prompt("Checkpoint?");
-    const lane=prompt("Lane?");
-    const notes=prompt("Notes?");
-    await fetch(`${API}/machines/${id}`,{
-        method:"PUT",
-        headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({airport,terminal,checkpoint,lane,notes})
-    });
-    alert("Machine updated");
-    loadMachines();
-}
-
-async function deleteMachine(id){
-    if(!confirm("Delete this machine?")) return;
-    await fetch(`${API}/machines/${id}`,{method:"DELETE"});
-    alert("Machine deleted");
-    loadMachines();
-}
-
 // ---------- LOGIN ----------
-function toggleLoginFields(){
-    const selectedRole=document.getElementById("roleSelect").value;
-    document.getElementById("adminPassword").classList.toggle("hidden",selectedRole!=="Admin");
-    document.getElementById("techLogin").classList.toggle("hidden",selectedRole!=="Tech");
-}
-
 function login(){
     role=document.getElementById("roleSelect").value;
     if(role==="Admin"){
         const pass=document.getElementById("adminPassword").value;
         if(pass!=="1234") return alert("Incorrect Password");
-        document.getElementById("adminPanel").classList.remove("hidden");
     }
     if(role==="Tech"){
         const sel=document.getElementById("techSelect");
@@ -300,7 +150,7 @@ function login(){
 
 function logout(){ currentMachine=""; location.reload(); }
 
-// ---------- DASHBOARD & MACHINE FUNCTIONS ----------
+// ---------- DASHBOARD ----------
 async function loadMachine(){
     const id=document.getElementById("machineId").value.trim();
     if(!id) return alert("Enter a Machine ID");
@@ -320,7 +170,6 @@ async function getLogs(){
 }
 
 async function addService(){
-    if(role==="Supervisor") return alert("Supervisors cannot log service");
     if(!currentMachine) return alert("Load a machine first");
     const data = {
         machine_id: currentMachine,
@@ -406,8 +255,6 @@ function startScanner(){
 
 // ---------- INIT ----------
 populateTechDropdown();
-loadTechs();
-loadMachines();
 </script>
 
 </body>
