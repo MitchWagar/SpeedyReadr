@@ -6,7 +6,6 @@
 <title>Servi-Sync Enterprise</title>
 <script src="https://unpkg.com/html5-qrcode"></script>
 <style>
-/* basic styling */
 body { font-family: Arial, sans-serif; margin:0; background:#eef2f7; }
 header { background:#0f172a; color:white; padding:15px; display:flex; justify-content:space-between; align-items:center; }
 .container { padding:20px; max-width:1100px; margin:auto; }
@@ -20,6 +19,7 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 .tab-button { background:#cbd5e1; color:black; }
 .tab-button.active { background:#2563eb; color:white; }
 #reader { width:300px; margin-top:10px; }
+.part-input { width: 19%; display:inline-block; margin-right:1%; }
 </style>
 </head>
 <body>
@@ -107,13 +107,15 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 <div id="logTab" class="hidden">
 <div class="card">
 <h3>Log Service</h3>
-<input id="workOrder" placeholder="Work Order #" />
+<input id="workOrder" placeholder="Work Order #" >
 <textarea id="details" placeholder="Work Performed"></textarea>
-<input id="part1" placeholder="Part 1" />
-<input id="part2" placeholder="Part 2" />
-<input id="part3" placeholder="Part 3" />
-<input id="part4" placeholder="Part 4" />
-<input id="part5" placeholder="Part 5" />
+<div>
+<input class="part-input" id="part1" placeholder="Part 1">
+<input class="part-input" id="part2" placeholder="Part 2">
+<input class="part-input" id="part3" placeholder="Part 3">
+<input class="part-input" id="part4" placeholder="Part 4">
+<input class="part-input" id="part5" placeholder="Part 5">
+</div>
 <input id="downtime" type="number" placeholder="Downtime (hours)">
 <button onclick="addService()">Submit Log</button>
 </div>
@@ -147,7 +149,7 @@ let role="", currentMachine="", loggedTech=null, scanner=null;
 // ---------- TECH ----------
 async function getTechs() {
     const res = await fetch(API+"/techs");
-    return await res.json();
+    return await res.json(); 
 }
 
 async function populateTechDropdown(){
@@ -253,50 +255,54 @@ async function addService(){
         document.getElementById("part3").value,
         document.getElementById("part4").value,
         document.getElementById("part5").value
-    ].filter(p=>p).join(", ");
+    ];
 
     const data = {
         machine_id: currentMachine,
-        work_order: document.getElementById("workOrder").value || "",
         tech_name: loggedTech?.name || "N/A",
         tech_phone: loggedTech?.phone || "N/A",
+        work_order: document.getElementById("workOrder").value,
         details: document.getElementById("details").value,
-        parts,
+        part1: parts[0],
+        part2: parts[1],
+        part3: parts[2],
+        part4: parts[3],
+        part5: parts[4],
         downtime: document.getElementById("downtime").value || 0
     };
 
-    const res = await fetch(API+"/logs", {
+    await fetch(API+"/logs", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify(data)
     });
-    await res.json();
 
     alert("Service log submitted!");
-    document.getElementById("workOrder").value="";
     document.getElementById("details").value="";
-    document.getElementById("part1").value="";
-    document.getElementById("part2").value="";
-    document.getElementById("part3").value="";
-    document.getElementById("part4").value="";
-    document.getElementById("part5").value="";
+    document.getElementById("workOrder").value="";
+    parts.forEach((_,i)=>document.getElementById(`part${i+1}`).value="");
     document.getElementById("downtime").value="";
+
     displayHistory();
 }
 
 async function displayHistory(){
-    const history=document.getElementById("history");
-    history.innerHTML="";
-    const logs=await getLogs();
-    logs.forEach(log=>{
-        history.innerHTML+=`
+    const history = document.getElementById("history");
+    history.innerHTML = "";
+    const logs = await getLogs();
+
+    logs.forEach(log => {
+        history.innerHTML += `
         <div class="log">
-        <strong>${new Date(log.date).toLocaleString()}</strong><br>
-        Work Order: ${log.work_order || "-"}<br>
-        Tech: ${log.tech_name}<br>
-        Phone: ${log.tech_phone}<br>
-        Downtime: ${log.downtime} hrs<br>
-        Work: ${log.details}${log.parts ? "<br>Parts: "+log.parts : "" }
+            <strong>${new Date(log.date).toLocaleString()}</strong><br>
+            ${log.work_order ? `Work Order #: ${log.work_order}<br>` : ""}
+            Tech: ${log.tech_name}<br>
+            Phone: ${log.tech_phone}<br>
+            Downtime: ${log.downtime} hrs<br>
+            Work: ${log.details}
+            ${log.part1 || log.part2 || log.part3 || log.part4 || log.part5
+                ? "<br>Parts: " + [log.part1, log.part2, log.part3, log.part4, log.part5].filter(p => p).join(", ")
+                : "" }
         </div>`;
     });
 }
@@ -332,7 +338,6 @@ async function updateLocation(){
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
             machine_id: currentMachine,
-            work_order: "",
             tech_name: loggedTech?.name || "N/A",
             tech_phone: loggedTech?.phone || "N/A",
             details,
