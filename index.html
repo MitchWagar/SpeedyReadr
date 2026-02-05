@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -77,6 +78,11 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 <div class="card">
     <h3>Manage Technicians</h3>
     <div id="techList"></div>
+</div>
+
+<div class="card">
+    <h3>Manage Machines</h3>
+    <div id="machineList"></div>
 </div>
 
 </div>
@@ -205,6 +211,30 @@ function login(){
 function logout(){ currentMachine=""; location.reload(); }
 
 // ---------- MACHINES ----------
+async function getMachines() {
+    const res = await fetch(API+"/machines");
+    return await res.json();
+}
+
+async function displayMachines() {
+    const machineList = document.getElementById("machineList");
+    const machines = await getMachines();
+    
+    machineList.innerHTML = machines.map(machine => `
+        <div class="card" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div>
+                <strong>Machine ID: ${machine.machine_id}</strong><br>
+                Airport: ${machine.airport || 'N/A'}<br>
+                Terminal: ${machine.terminal || 'N/A'}
+            </div>
+            <div>
+                <button onclick="editMachine('${machine.machine_id}')" style="background:#f59e0b; margin-right:5px;">Edit</button>
+                <button onclick="deleteMachine('${machine.machine_id}')" style="background:#ef4444;">Delete</button>
+            </div>
+        </div>
+    `).join('');
+}
+
 async function createMachine(){
     const machine_id=document.getElementById("newMachineId").value.trim();
     if(!machine_id) return alert("Machine ID required");
@@ -224,6 +254,7 @@ async function createMachine(){
     const result = await res.json();
     if(result.error) return alert(result.error);
     alert("Machine Created: "+result.machine_id);
+    displayMachines();
 }
 
 async function loadMachine(){
@@ -411,8 +442,57 @@ async function deleteTechnician(id) {
     }
 }
 
+// ---------- MACHINE MANAGEMENT ----------
+async function editMachine(machineId) {
+    const res = await fetch(API+"/machines/" + machineId);
+    const machine = await res.json();
+    
+    const newAirport = prompt("Edit Airport:", machine.airport || '');
+    const newTerminal = prompt("Edit Terminal:", machine.terminal || '');
+    const newCheckpoint = prompt("Edit Checkpoint:", machine.checkpoint || '');
+    const newLane = prompt("Edit Lane:", machine.lane || '');
+    const newNotes = prompt("Edit Notes:", machine.notes || '');
+    
+    if (newAirport !== null || newTerminal !== null || newCheckpoint !== null || newLane !== null || newNotes !== null) {
+        const res = await fetch(API+"/machines/" + machineId, {
+            method: "PUT",
+            headers: {"Content-Type":"application/json"},
+            body: JSON.stringify({
+                airport: newAirport,
+                terminal: newTerminal,
+                checkpoint: newCheckpoint,
+                lane: newLane,
+                notes: newNotes
+            })
+        });
+        
+        if (res.ok) {
+            alert("Machine updated successfully!");
+            displayMachines();
+        } else {
+            alert("Failed to update machine");
+        }
+    }
+}
+
+async function deleteMachine(machineId) {
+    if (!confirm("Are you sure you want to delete this machine?")) return;
+    
+    const res = await fetch(API+"/machines/" + machineId, {
+        method: "DELETE"
+    });
+    
+    if (res.ok) {
+        alert("Machine deleted successfully!");
+        displayMachines();
+    } else {
+        alert("Failed to delete machine");
+    }
+}
+
 // ---------- INIT ----------
 populateTechDropdown();
+displayMachines();
 </script>
 </body>
 </html>
