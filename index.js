@@ -181,20 +181,18 @@ app.put("/machines/:id/location", async (req, res) => {
         [airport, terminal, checkpoint, lane, notes, id]
     );
     
-    // Create a location change log entry
+    // Create a location change log entry (without notes)
     const locationChangeDetails = `Location changed from:
     Airport: ${oldMachine.airport || 'N/A'}, 
     Terminal: ${oldMachine.terminal || 'N/A'}, 
     Checkpoint: ${oldMachine.checkpoint || 'N/A'}, 
-    Lane: ${oldMachine.lane || 'N/A'}, 
-    Notes: ${oldMachine.notes || 'N/A'}
+    Lane: ${oldMachine.lane || 'N/A'}
     
     To:
     Airport: ${airport || 'N/A'}, 
     Terminal: ${terminal || 'N/A'}, 
     Checkpoint: ${checkpoint || 'N/A'}, 
-    Lane: ${lane || 'N/A'}, 
-    Notes: ${notes || 'N/A'}`;
+    Lane: ${lane || 'N/A'}`;
     
     // Insert the location change as a service log
     await pool.query(
