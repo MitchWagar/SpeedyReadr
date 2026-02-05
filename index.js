@@ -120,8 +120,7 @@ app.post("/machines", async (req, res) => {
     const { machine_id, airport, terminal, checkpoint, lane, notes } = req.body;
     try {
         const result = await pool.query(
-            `INSERT INTO machines (machine_id, airport, terminal, checkpoint, lane, notes)
-             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+            `INSERT INTO machines (machine_id, airport, terminal, checkpoint, lane, notes) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
             [machine_id, airport, terminal, checkpoint, lane, notes]
         );
         res.json(result.rows[0]);
@@ -137,8 +136,7 @@ app.put("/machines/:id", async (req, res) => {
     
     try {
         const result = await pool.query(
-            `UPDATE machines SET airport=$1, terminal=$2, checkpoint=$3, lane=$4, notes=$5
-             WHERE machine_id=$6 RETURNING *`,
+            `UPDATE machines SET airport=$1, terminal=$2, checkpoint=$3, lane=$4, notes=$5 WHERE machine_id=$6 RETURNING *`,
             [airport, terminal, checkpoint, lane, notes, id]
         );
         if (result.rows.length === 0) {
@@ -165,17 +163,6 @@ app.delete("/machines/:id", async (req, res) => {
     }
 });
 
-app.put("/machines/:id/location", async (req, res) => {
-    const { id } = req.params;
-    const { airport, terminal, checkpoint, lane, notes } = req.body;
-    const result = await pool.query(
-        `UPDATE machines SET airport=$1, terminal=$2, checkpoint=$3, lane=$4, notes=$5
-         WHERE machine_id=$6 RETURNING *`,
-        [airport, terminal, checkpoint, lane, notes, id]
-    );
-    res.json(result.rows[0]);
-});
-
 // ---------- SERVICE LOGS ----------
 app.get("/logs/:machine_id", async (req, res) => {
     const { machine_id } = req.params;
@@ -188,12 +175,15 @@ app.get("/logs/:machine_id", async (req, res) => {
 
 app.post("/logs", async (req, res) => {
     const { machine_id, tech_name, tech_phone, details, parts, downtime } = req.body;
-    const result = await pool.query(
-        `INSERT INTO service_logs (machine_id, tech_name, tech_phone, details, parts, downtime)
-         VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-        [machine_id, tech_name, tech_phone, details, parts, downtime || 0]
-    );
-    res.json(result.rows[0]);
+    try {
+        const result = await pool.query(
+            `INSERT INTO service_logs (machine_id, tech_name, tech_phone, details, parts, downtime) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+            [machine_id, tech_name, tech_phone, details, parts, downtime || 0]
+        );
+        res.json(result.rows[0]);
+    } catch(err) {
+        res.status(400).json({ error: err.message });
+    }
 });
 
 // ---------- SERVICE LOGS (ADMIN ONLY) ----------
