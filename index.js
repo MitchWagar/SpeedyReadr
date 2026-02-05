@@ -1,4 +1,4 @@
-// index.js - Add this to your existing server code
+// index.js
 const express = require("express");
 const cors = require("cors");
 const { Pool } = require("pg");
@@ -105,18 +105,7 @@ app.delete("/techs/:id", async (req, res) => {
 
 // ---------- MACHINES ----------
 app.get("/machines", async (req, res) => {
-    const { sort = 'airport' } = req.query;
-    let orderBy = 'airport ASC, machine_id ASC';
-    
-    if (sort === 'airport') {
-        orderBy = 'airport ASC, machine_id ASC';
-    } else if (sort === 'machine_id') {
-        orderBy = 'machine_id ASC';
-    } else if (sort === 'terminal') {
-        orderBy = 'terminal ASC, machine_id ASC';
-    }
-    
-    const result = await pool.query(`SELECT * FROM machines ORDER BY ${orderBy}`);
+    const result = await pool.query("SELECT * FROM machines ORDER BY machine_id ASC");
     res.json(result.rows);
 });
 
@@ -179,38 +168,11 @@ app.delete("/machines/:id", async (req, res) => {
 app.put("/machines/:id/location", async (req, res) => {
     const { id } = req.params;
     const { airport, terminal, checkpoint, lane, notes } = req.body;
-    
-    // Get the current machine data before updating
-    const getCurrentMachine = await pool.query("SELECT * FROM machines WHERE machine_id=$1", [id]);
-    const oldMachine = getCurrentMachine.rows[0];
-    
-    // Update the machine location
     const result = await pool.query(
         `UPDATE machines SET airport=$1, terminal=$2, checkpoint=$3, lane=$4, notes=$5
          WHERE machine_id=$6 RETURNING *`,
         [airport, terminal, checkpoint, lane, notes, id]
     );
-    
-    // Create a location change log entry (without notes)
-    const locationChangeDetails = `Location changed from:
-    Airport: ${oldMachine.airport || 'N/A'}, 
-    Terminal: ${oldMachine.terminal || 'N/A'}, 
-    Checkpoint: ${oldMachine.checkpoint || 'N/A'}, 
-    Lane: ${oldMachine.lane || 'N/A'}
-    
-    To:
-    Airport: ${airport || 'N/A'}, 
-    Terminal: ${terminal || 'N/A'}, 
-    Checkpoint: ${checkpoint || 'N/A'}, 
-    Lane: ${lane || 'N/A'}`;
-    
-    // Insert the location change as a service log
-    await pool.query(
-        `INSERT INTO service_logs (machine_id, tech_name, tech_phone, details, parts, downtime)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-        [id, "SYSTEM", "N/A", locationChangeDetails, "", 0]
-    );
-    
     res.json(result.rows[0]);
 });
 
@@ -234,21 +196,7 @@ app.post("/logs", async (req, res) => {
     res.json(result.rows[0]);
 });
 
-// Add DELETE endpoint for deleting service logs
-app.delete("/logs/:id", async (req, res) => {
-    const { id } = req.params;
-    
-    try {
-        const result = await pool.query("DELETE FROM service_logs WHERE id=$1 RETURNING *", [id]);
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: "Service log not found" });
-        }
-        res.json({ message: "Service log deleted successfully" });
-    } catch(err) {
-        res.status(400).json({ error: err.message });
-    }
-});
-
 // ---------- SERVER ----------
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`Servi-Sync server running on port ${PORT}`));
+
