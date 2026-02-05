@@ -1,4 +1,3 @@
-```javascript
 // index.js
 const express = require("express");
 const cors = require("cors");
@@ -106,7 +105,18 @@ app.delete("/techs/:id", async (req, res) => {
 
 // ---------- MACHINES ----------
 app.get("/machines", async (req, res) => {
-    const result = await pool.query("SELECT * FROM machines ORDER BY machine_id ASC");
+    const { sort = 'airport' } = req.query;
+    let orderBy = 'airport ASC, machine_id ASC';
+    
+    if (sort === 'airport') {
+        orderBy = 'airport ASC, machine_id ASC';
+    } else if (sort === 'machine_id') {
+        orderBy = 'machine_id ASC';
+    } else if (sort === 'terminal') {
+        orderBy = 'terminal ASC, machine_id ASC';
+    }
+    
+    const result = await pool.query(`SELECT * FROM machines ORDER BY ${orderBy}`);
     res.json(result.rows);
 });
 
@@ -227,4 +237,3 @@ app.post("/logs", async (req, res) => {
 // ---------- SERVER ----------
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`Servi-Sync server running on port ${PORT}`));
-```
