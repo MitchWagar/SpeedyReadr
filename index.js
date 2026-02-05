@@ -223,7 +223,20 @@ app.get("/logs/:machine_id", async (req, res) => {
     );
     res.json(result.rows);
 });
-
+// Add DELETE endpoint for deleting service logs
+app.delete("/logs/:id", async (req, res) => {
+    const { id } = req.params;
+    
+    try {
+        const result = await pool.query("DELETE FROM service_logs WHERE id=$1 RETURNING *", [id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Service log not found" });
+        }
+        res.json({ message: "Service log deleted successfully" });
+    } catch(err) {
+        res.status(400).json({ error: err.message });
+    }
+});
 app.post("/logs", async (req, res) => {
     const { machine_id, tech_name, tech_phone, details, parts, downtime } = req.body;
     const result = await pool.query(
