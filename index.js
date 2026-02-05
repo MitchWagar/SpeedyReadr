@@ -1,4 +1,4 @@
-// index.js
+// index.js - Add this to your existing server code
 const express = require("express");
 const cors = require("cors");
 const { Pool } = require("pg");
@@ -223,6 +223,17 @@ app.get("/logs/:machine_id", async (req, res) => {
     );
     res.json(result.rows);
 });
+
+app.post("/logs", async (req, res) => {
+    const { machine_id, tech_name, tech_phone, details, parts, downtime } = req.body;
+    const result = await pool.query(
+        `INSERT INTO service_logs (machine_id, tech_name, tech_phone, details, parts, downtime)
+         VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+        [machine_id, tech_name, tech_phone, details, parts, downtime || 0]
+    );
+    res.json(result.rows[0]);
+});
+
 // Add DELETE endpoint for deleting service logs
 app.delete("/logs/:id", async (req, res) => {
     const { id } = req.params;
@@ -236,15 +247,6 @@ app.delete("/logs/:id", async (req, res) => {
     } catch(err) {
         res.status(400).json({ error: err.message });
     }
-});
-app.post("/logs", async (req, res) => {
-    const { machine_id, tech_name, tech_phone, details, parts, downtime } = req.body;
-    const result = await pool.query(
-        `INSERT INTO service_logs (machine_id, tech_name, tech_phone, details, parts, downtime)
-         VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-        [machine_id, tech_name, tech_phone, details, parts, downtime || 0]
-    );
-    res.json(result.rows[0]);
 });
 
 // ---------- SERVER ----------
