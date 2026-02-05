@@ -196,6 +196,21 @@ app.post("/logs", async (req, res) => {
     res.json(result.rows[0]);
 });
 
+// ---------- DELETE LOG ----------
+app.delete("/logs/:log_id", async (req, res) => {
+    const { log_id } = req.params;
+    
+    try {
+        const result = await pool.query("DELETE FROM service_logs WHERE id=$1 RETURNING *", [log_id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Log not found" });
+        }
+        res.json({ message: "Log deleted successfully" });
+    } catch(err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
 // ---------- SERVER ----------
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`Servi-Sync server running on port ${PORT}`));
