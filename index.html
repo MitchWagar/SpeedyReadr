@@ -9,7 +9,7 @@
 body { font-family: Arial, sans-serif; margin:0; background:#eef2f7; }
 header { background:#0f172a; color:white; padding:15px; display:flex; justify-content:space-between; align-items:center; }
 .container { padding:20px; max-width:1100px; margin:auto; }
-.card { background:white; padding:20px; border-radius:10px; margin-bottom:20px; box-shadow:0 3px 8px rgba(0,0,0,0.08);}
+.card { background:white; padding:20px; border-radius:10px; margin-bottom:20px; box-shadow:0 3px 8px rgba(0,0,0,0.08); }
 button { padding:8px 15px; border:none; border-radius:6px; background:#2563eb; color:white; cursor:pointer; }
 button:hover { background:#1d4ed8; }
 input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6px; border:1px solid #ccc; }
@@ -19,6 +19,8 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 .tab-button { background:#cbd5e1; color:black; }
 .tab-button.active { background:#2563eb; color:white; }
 #reader { width:300px; margin-top:10px; }
+.parts-grid { display:grid; grid-template-columns: repeat(5, 1fr); gap:5px; }
+.parts-grid input { width:100%; }
 </style>
 </head>
 <body>
@@ -54,7 +56,6 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 
 <!-- ADMIN PANEL -->
 <div id="adminPanel" class="hidden">
-
 <div class="card">
 <h3>Add Technician</h3>
 <input id="newTechName" placeholder="Technician Name">
@@ -72,12 +73,10 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 <textarea id="notes" placeholder="Position Notes"></textarea>
 <button onclick="createMachine()">Create Machine</button>
 </div>
-
 </div>
 
 <!-- DASHBOARD -->
 <div id="dashboard" class="hidden">
-
 <div class="card">
 <h3>Machine Lookup</h3>
 <input id="machineId" placeholder="Enter Machine ID">
@@ -106,10 +105,9 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 <div id="logTab" class="hidden">
 <div class="card">
 <h3>Log Service</h3>
-<input id="workOrder" placeholder="Work Order #" />
+<input id="workOrder" placeholder="Work Order #">
 <textarea id="details" placeholder="Work Performed"></textarea>
-<div>
-<h4>Parts Used:</h4>
+<div class="parts-grid">
 <input id="part1" placeholder="Part 1">
 <input id="part2" placeholder="Part 2">
 <input id="part3" placeholder="Part 3">
@@ -252,22 +250,21 @@ async function addService(){
     if(role==="Supervisor") return alert("Supervisors cannot log service");
     if(!currentMachine) return alert("Load a machine first");
 
-    // Collect parts separately and remove empty
     const parts = [
         document.getElementById("part1").value,
         document.getElementById("part2").value,
         document.getElementById("part3").value,
         document.getElementById("part4").value,
         document.getElementById("part5").value
-    ].filter(p => p.trim() !== "");
+    ].filter(p=>p!=="").join(", "); // store as comma separated string
 
     const data = {
         machine_id: currentMachine,
+        work_order: document.getElementById("workOrder").value || "",
         tech_name: loggedTech?.name || "N/A",
         tech_phone: loggedTech?.phone || "N/A",
-        work_order: document.getElementById("workOrder").value || "N/A",
         details: document.getElementById("details").value,
-        parts: parts.join(", "), // store as comma-separated string
+        parts: parts,
         downtime: document.getElementById("downtime").value || 0
     };
 
@@ -279,31 +276,33 @@ async function addService(){
 
     const result = await res.json();
     alert("Service log submitted!");
-    
-    // Clear inputs
-    document.getElementById("workOrder").value="";
     document.getElementById("details").value="";
-    for(let i=1;i<=5;i++) document.getElementById(`part${i}`).value="";
+    document.getElementById("workOrder").value="";
+    document.getElementById("part1").value="";
+    document.getElementById("part2").value="";
+    document.getElementById("part3").value="";
+    document.getElementById("part4").value="";
+    document.getElementById("part5").value="";
     document.getElementById("downtime").value="";
-
     displayHistory();
 }
 
 async function displayHistory(){
     const history=document.getElementById("history");
     history.innerHTML="";
-    const logs=await getLogs();
-    logs.reverse().forEach(log=>{
+    const logs=await getLogs(); // API returns newest first
+
+    logs.forEach(log=>{
         const partsHTML = log.parts ? `<br>Parts: ${log.parts}` : "";
         const workOrderHTML = log.work_order ? `<br>Work Order #: ${log.work_order}` : "";
-        history.innerHTML+=`
+        history.innerHTML += `
         <div class="log">
-          <strong>${new Date(log.date).toLocaleString()}</strong>
-          ${workOrderHTML}<br>
-          Tech: ${log.tech_name}<br>
-          Phone: ${log.tech_phone}<br>
-          Downtime: ${log.downtime} hrs<br>
-          Work: ${log.details}${partsHTML}
+            <strong>${new Date(log.date).toLocaleString()}</strong>
+            ${workOrderHTML}<br>
+            Tech: ${log.tech_name}<br>
+            Phone: ${log.tech_phone}<br>
+            Downtime: ${log.downtime} hrs<br>
+            Work: ${log.details}${partsHTML}
         </div>`;
     });
 }
@@ -329,26 +328,24 @@ async function updateLocation(){
         notes: document.getElementById("updateNotes").value
     };
 
-    // Update machine location
     await fetch(API+"/machines/"+currentMachine+"/location", {
         method:"PUT",
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify(newData)
     });
 
-    // Log location change as service log
     const details = `Machine moved from Airport: ${oldData.airport}, Terminal: ${oldData.terminal}, Checkpoint: ${oldData.checkpoint}, Lane: ${oldData.lane}, Notes: ${oldData.notes} To Airport: ${newData.airport}, Terminal: ${newData.terminal}, Checkpoint: ${newData.checkpoint}, Lane: ${newData.lane}, Notes: ${newData.notes}`;
     await fetch(API+"/logs", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
             machine_id: currentMachine,
+            work_order: "",
             tech_name: loggedTech?.name || "N/A",
             tech_phone: loggedTech?.phone || "N/A",
             details,
             parts:"",
-            downtime:0,
-            work_order:"Location Update"
+            downtime:0
         })
     });
 
