@@ -1,3 +1,4 @@
+```javascript
 // index.js
 const express = require("express");
 const cors = require("cors");
@@ -199,3 +200,4 @@ app.post("/logs", async (req, res) => {
 // ---------- SERVER ----------
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`Servi-Sync server running on port ${PORT}`));
+```
