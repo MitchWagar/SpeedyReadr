@@ -1,243 +1,126 @@
-// app.js
-const API = "https://speedyreadr.onrender.com"; // Replace with your Render URL
-let role = "", currentMachine = "", loggedTech = null, scanner = null;
+// index.js
+const express = require("express");
+const cors = require("cors");
+const { Pool } = require("pg");
 
-// ---------- TECH MANAGEMENT ----------
-async function getTechs() {
-    const res = await fetch(API + "/techs");
-    return await res.json();
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// ---------- DATABASE ----------
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+});
+
+// ---------- CREATE TABLES ----------
+async function initDB() {
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS technicians (
+            id SERIAL PRIMARY KEY,
+            name TEXT NOT NULL,
+            phone TEXT NOT NULL
+        );
+    `);
+
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS machines (
+            id SERIAL PRIMARY KEY,
+            machine_id TEXT UNIQUE NOT NULL,
+            airport TEXT,
+            terminal TEXT,
+            checkpoint TEXT,
+            lane TEXT,
+            notes TEXT
+        );
+    `);
+
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS service_logs (
+            id SERIAL PRIMARY KEY,
+            machine_id TEXT REFERENCES machines(machine_id),
+            date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            tech_name TEXT,
+            tech_phone TEXT,
+            details TEXT,
+            parts TEXT,
+            downtime NUMERIC DEFAULT 0
+        );
+    `);
+
+    console.log("Database initialized!");
 }
+initDB().catch(console.error);
 
-async function addTechnician() {
-    const name = document.getElementById("newTechName").value;
-    const phone = document.getElementById("newTechPhone").value;
-    if (!name || !phone) return alert("Name and phone required");
+// ---------- TECHNICIANS ----------
+app.get("/techs", async (req, res) => {
+    const result = await pool.query("SELECT * FROM technicians ORDER BY id ASC");
+    res.json(result.rows); // returns flat array [{id,name,phone}, ...]
+});
 
-    const res = await fetch(API + "/techs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone })
-    });
-    const data = await res.json();
-    alert("Technician Added: " + data.name);
-    populateTechDropdown();
-}
-
-async function populateTechDropdown() {
-    const select = document.getElementById("techSelect");
-    const techs = await getTechs();
-    select.innerHTML = '<option value="">Select Technician</option>';
-    techs.forEach((t, i) => select.innerHTML += `<option value="${i}" data-name="${t.name}" data-phone="${t.phone}">${t.name}</option>`);
-}
-
-// ---------- LOGIN ----------
-function toggleLoginFields() {
-    const selectedRole = document.getElementById("roleSelect").value;
-    document.getElementById("adminPassword").classList.toggle("hidden", selectedRole !== "Admin");
-    document.getElementById("techLogin").classList.toggle("hidden", selectedRole !== "Tech");
-}
-
-function login() {
-    role = document.getElementById("roleSelect").value;
-    if (role === "Admin") {
-        const pass = document.getElementById("adminPassword").value;
-        if (pass !== "1234") return alert("Incorrect Password");
-        document.getElementById("adminPanel").classList.remove("hidden");
-    }
-
-    if (role === "Tech") {
-        const sel = document.getElementById("techSelect");
-        const index = sel.value;
-        if (index === "") return alert("Select Technician");
-        loggedTech = { name: sel.options[index].dataset.name, phone: sel.options[index].dataset.phone };
-    }
-
-    document.getElementById("loginCard").classList.add("hidden");
-    document.getElementById("dashboard").classList.remove("hidden");
-    document.getElementById("userDisplay").innerText = role === "Tech" ? `${loggedTech.name} (${loggedTech.phone})` : role;
-}
-
-function logout() {
-    currentMachine = "";
-    location.reload();
-}
+app.post("/techs", async (req, res) => {
+    const { name, phone } = req.body;
+    if(!name || !phone) return res.status(400).json({ error: "Name and phone required" });
+    const result = await pool.query(
+        "INSERT INTO technicians (name, phone) VALUES ($1, $2) RETURNING *",
+        [name, phone]
+    );
+    res.json(result.rows[0]);
+});
 
 // ---------- MACHINES ----------
-async function createMachine() {
-    const machine_id = document.getElementById("newMachineId").value.trim();
-    if (!machine_id) return alert("Machine ID required");
+app.get("/machines/:id", async (req, res) => {
+    const { id } = req.params;
+    const result = await pool.query("SELECT * FROM machines WHERE machine_id=$1", [id]);
+    if(result.rows.length === 0) return res.status(404).json({ error: "Machine not found" });
+    res.json(result.rows[0]);
+});
 
-    const data = {
-        machine_id,
-        airport: document.getElementById("airport").value,
-        terminal: document.getElementById("terminal").value,
-        checkpoint: document.getElementById("checkpoint").value,
-        lane: document.getElementById("lane").value,
-        notes: document.getElementById("notes").value
-    };
+app.post("/machines", async (req, res) => {
+    const { machine_id, airport, terminal, checkpoint, lane, notes } = req.body;
+    try {
+        const result = await pool.query(
+            `INSERT INTO machines (machine_id, airport, terminal, checkpoint, lane, notes)
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+            [machine_id, airport, terminal, checkpoint, lane, notes]
+        );
+        res.json(result.rows[0]);
+    } catch(err) {
+        res.status(400).json({ error: err.message });
+    }
+});
 
-    const res = await fetch(API + "/machines", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data)
-    });
-
-    const result = await res.json();
-    if (result.error) return alert(result.error);
-    alert("Machine Created: " + result.machine_id);
-}
-
-async function loadMachine() {
-    const id = document.getElementById("machineId").value.trim();
-    if (!id) return alert("Enter a Machine ID");
-
-    const res = await fetch(API + "/machines/" + id);
-    if (res.status !== 200) return alert("Machine not found");
-
-    currentMachine = id;
-    document.getElementById("machineSection").classList.remove("hidden");
-    displayHistory();
-    loadLocation();
-}
-
-// ---------- SERVICE ----------
-async function getLogs() {
-    if (!currentMachine) return [];
-    const res = await fetch(API + "/logs/" + currentMachine);
-    return await res.json();
-}
-
-async function addService() {
-    if (role === "Supervisor") return alert("Supervisors cannot log service");
-    if (!currentMachine) return alert("Load a machine first");
-
-    const parts = [
-        document.getElementById("part1").value,
-        document.getElementById("part2").value,
-        document.getElementById("part3").value,
-        document.getElementById("part4").value,
-        document.getElementById("part5").value
-    ].filter(p => p.trim() !== "");
-
-    const data = {
-        machine_id: currentMachine,
-        tech_name: loggedTech?.name || "N/A",
-        tech_phone: loggedTech?.phone || "N/A",
-        work_order: document.getElementById("workOrder").value || "N/A",
-        details: document.getElementById("details").value,
-        parts: parts.join(", "),
-        downtime: document.getElementById("downtime").value || 0
-    };
-
-    const res = await fetch(API + "/logs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data)
-    });
-
-    const result = await res.json();
-    alert("Service log submitted!");
-
-    document.getElementById("workOrder").value = "";
-    document.getElementById("details").value = "";
-    for (let i = 1; i <= 5; i++) document.getElementById(`part${i}`).value = "";
-    document.getElementById("downtime").value = "";
-
-    displayHistory();
-}
-
-async function displayHistory() {
-    const history = document.getElementById("history");
-    history.innerHTML = "";
-    const logs = await getLogs();
-    logs.reverse().forEach(log => {
-        const partsHTML = log.parts ? `<br>Parts: ${log.parts}` : "";
-        const workOrderHTML = log.work_order ? `<br>Work Order #: ${log.work_order}` : "";
-        history.innerHTML += `
-        <div class="log">
-            <strong>${new Date(log.date).toLocaleString()}</strong>
-            ${workOrderHTML}<br>
-            Tech: ${log.tech_name}<br>
-            Phone: ${log.tech_phone}<br>
-            Downtime: ${log.downtime} hrs<br>
-            Work: ${log.details}${partsHTML}
-        </div>`;
-    });
-}
-
-// ---------- LOCATION ----------
-async function loadLocation() {
-    const res = await fetch(API + "/machines/" + currentMachine);
-    const data = await res.json();
-    const display = document.getElementById("locationDisplay");
-    if (!data) return display.innerHTML = "No location set.";
-    display.innerHTML = `Airport: ${data.airport}<br>Terminal: ${data.terminal}<br>Checkpoint: ${data.checkpoint}<br>Lane: ${data.lane}<br>Notes: ${data.notes}`;
-}
-
-async function updateLocation() {
-    const oldDataRes = await fetch(API + "/machines/" + currentMachine);
-    const oldData = await oldDataRes.json();
-
-    const newData = {
-        airport: document.getElementById("updateAirport").value,
-        terminal: document.getElementById("updateTerminal").value,
-        checkpoint: document.getElementById("updateCheckpoint").value,
-        lane: document.getElementById("updateLane").value,
-        notes: document.getElementById("updateNotes").value
-    };
-
-    await fetch(API + "/machines/" + currentMachine + "/location", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newData)
-    });
-
-    const details = `Machine moved from Airport: ${oldData.airport}, Terminal: ${oldData.terminal}, Checkpoint: ${oldData.checkpoint}, Lane: ${oldData.lane}, Notes: ${oldData.notes} To Airport: ${newData.airport}, Terminal: ${newData.terminal}, Checkpoint: ${newData.checkpoint}, Lane: ${newData.lane}, Notes: ${newData.notes}`;
-    
-    await fetch(API + "/logs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            machine_id: currentMachine,
-            tech_name: loggedTech?.name || "N/A",
-            tech_phone: loggedTech?.phone || "N/A",
-            details,
-            parts: "",
-            downtime: 0,
-            work_order: "Location Update"
-        })
-    });
-
-    alert("Location updated and logged in history");
-    loadLocation();
-    displayHistory();
-}
-
-// ---------- TABS ----------
-function showTab(tabId, btn) {
-    document.getElementById("historyTab").classList.add("hidden");
-    document.getElementById("logTab").classList.add("hidden");
-    document.getElementById("locationTab").classList.add("hidden");
-    document.getElementById(tabId).classList.remove("hidden");
-    document.querySelectorAll(".tab-button").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-}
-
-// ---------- QR ----------
-function startScanner() {
-    const reader = document.getElementById("reader");
-    reader.classList.remove("hidden");
-    scanner = new Html5Qrcode("reader");
-    scanner.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: 250 },
-        qr => {
-            document.getElementById("machineId").value = qr;
-            scanner.stop();
-            reader.classList.add("hidden");
-        }
+app.put("/machines/:id/location", async (req, res) => {
+    const { id } = req.params;
+    const { airport, terminal, checkpoint, lane, notes } = req.body;
+    const result = await pool.query(
+        `UPDATE machines SET airport=$1, terminal=$2, checkpoint=$3, lane=$4, notes=$5
+         WHERE machine_id=$6 RETURNING *`,
+        [airport, terminal, checkpoint, lane, notes, id]
     );
-}
+    res.json(result.rows[0]);
+});
 
-// ---------- INIT ----------
-populateTechDropdown();
+// ---------- SERVICE LOGS ----------
+app.get("/logs/:machine_id", async (req, res) => {
+    const { machine_id } = req.params;
+    const result = await pool.query(
+        "SELECT * FROM service_logs WHERE machine_id=$1 ORDER BY date DESC",
+        [machine_id]
+    );
+    res.json(result.rows);
+});
+
+app.post("/logs", async (req, res) => {
+    const { machine_id, tech_name, tech_phone, details, parts, downtime } = req.body;
+    const result = await pool.query(
+        `INSERT INTO service_logs (machine_id, tech_name, tech_phone, details, parts, downtime)
+         VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+        [machine_id, tech_name, tech_phone, details, parts, downtime || 0]
+    );
+    res.json(result.rows[0]);
+});
+
+// ---------- SERVER ----------
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => console.log(`Servi-Sync server running on port ${PORT}`));
