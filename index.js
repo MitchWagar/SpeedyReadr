@@ -68,6 +68,41 @@ app.post("/techs", async (req, res) => {
     res.json(result.rows[0]);
 });
 
+// Add PUT endpoint for editing technicians
+app.put("/techs/:id", async (req, res) => {
+    const { id } = req.params;
+    const { name, phone } = req.body;
+    if(!name || !phone) return res.status(400).json({ error: "Name and phone required" });
+    
+    try {
+        const result = await pool.query(
+            "UPDATE technicians SET name=$1, phone=$2 WHERE id=$3 RETURNING *",
+            [name, phone, id]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Technician not found" });
+        }
+        res.json(result.rows[0]);
+    } catch(err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+// Add DELETE endpoint for deleting technicians
+app.delete("/techs/:id", async (req, res) => {
+    const { id } = req.params;
+    
+    try {
+        const result = await pool.query("DELETE FROM technicians WHERE id=$1 RETURNING *", [id]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Technician not found" });
+        }
+        res.json({ message: "Technician deleted successfully" });
+    } catch(err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
 // ---------- MACHINES ----------
 app.get("/machines/:id", async (req, res) => {
     const { id } = req.params;
