@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Servi-Sync Enterprise</title>
 <script src="https://unpkg.com/html5-qrcode"></script>
-
 <style>
 body { font-family: Arial, sans-serif; margin:0; background:#eef2f7; }
 header { background:#0f172a; color:white; padding:15px; display:flex; justify-content:space-between; align-items:center; }
@@ -22,297 +21,346 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 #reader { width:300px; margin-top:10px; }
 </style>
 </head>
-
 <body>
 
 <header>
-  <h2>Servi-Sync Enterprise</h2>
-  <div>
-    <span id="userDisplay"></span>
-    <button onclick="logout()">Logout</button>
-  </div>
+<h2>Servi-Sync Enterprise</h2>
+<div>
+<span id="userDisplay"></span>
+<button onclick="logout()">Logout</button>
+</div>
 </header>
 
 <div class="container">
 
 <!-- LOGIN -->
 <div id="loginCard" class="card">
-  <h3>Login</h3>
+<h3>Login</h3>
+<select id="roleSelect" onchange="toggleLoginFields()">
+<option value="Tech">Technician</option>
+<option value="Supervisor">Supervisor</option>
+<option value="Admin">Admin</option>
+</select>
 
-  <select id="roleSelect" onchange="toggleLoginFields()">
-    <option value="Tech">Technician</option>
-    <option value="Admin">Admin</option>
-  </select>
-
-  <div id="techLogin">
-    <select id="techSelect"></select>
-  </div>
-
-  <input type="password" id="adminPassword" class="hidden" placeholder="Admin Password">
-  <button onclick="login()">Login</button>
+<div id="techLogin">
+<select id="techSelect">
+<option value="">Select Technician</option>
+</select>
 </div>
 
-<!-- ADMIN -->
+<input type="password" id="adminPassword" class="hidden" placeholder="Admin Password">
+<button onclick="login()">Login</button>
+</div>
+
+<!-- ADMIN PANEL -->
 <div id="adminPanel" class="hidden">
-  <div class="card">
-    <h3>Add Technician</h3>
-    <input id="newTechName" placeholder="Technician Name">
-    <input id="newTechPhone" placeholder="Phone Number">
-    <button onclick="addTechnician()">Add Technician</button>
-  </div>
+
+<div class="card">
+<h3>Add Technician</h3>
+<input id="newTechName" placeholder="Technician Name">
+<input id="newTechPhone" placeholder="Phone Number">
+<button onclick="addTechnician()">Add Technician</button>
+</div>
+
+<div class="card">
+<h3>Add New Machine</h3>
+<input id="newMachineId" placeholder="Machine ID">
+<input id="airport" placeholder="Airport">
+<input id="terminal" placeholder="Terminal">
+<input id="checkpoint" placeholder="Checkpoint">
+<input id="lane" placeholder="Lane">
+<textarea id="notes" placeholder="Position Notes"></textarea>
+<button onclick="createMachine()">Create Machine</button>
+</div>
+
 </div>
 
 <!-- DASHBOARD -->
 <div id="dashboard" class="hidden">
 
 <div class="card">
-  <h3>Machine Lookup</h3>
-  <input id="machineId" placeholder="Machine ID">
-  <button onclick="startScanner()">Scan QR</button>
-  <div id="reader" class="hidden"></div>
-  <button onclick="loadMachine()">Load Machine</button>
+<h3>Machine Lookup</h3>
+<input id="machineId" placeholder="Enter Machine ID">
+<button onclick="startScanner()">Scan QR</button>
+<div id="reader" class="hidden"></div>
+<button onclick="loadMachine()">Load Machine</button>
 </div>
 
 <div id="machineSection" class="hidden">
 
 <div class="tabs">
-  <button class="tab-button active" onclick="showTab('historyTab', this)">Service History</button>
-  <button class="tab-button" onclick="showTab('logTab', this)">Log Service</button>
-  <button class="tab-button" onclick="showTab('locationTab', this)">Location</button>
+<button class="tab-button active" onclick="showTab('historyTab', this)">Service History</button>
+<button class="tab-button" onclick="showTab('logTab', this)">Log Service</button>
+<button class="tab-button" onclick="showTab('locationTab', this)">Location</button>
 </div>
 
-<!-- HISTORY -->
+<!-- HISTORY TAB -->
 <div id="historyTab">
-  <div class="card">
-    <h3>Service History</h3>
-    <div id="history"></div>
-  </div>
+<div class="card">
+<h3>Service History</h3>
+<div id="history"></div>
+</div>
 </div>
 
-<!-- LOG SERVICE -->
+<!-- LOG SERVICE TAB -->
 <div id="logTab" class="hidden">
-  <div class="card">
-    <h3>Log Service</h3>
-    <textarea id="details" placeholder="Work Performed"></textarea>
-    <textarea id="partsUsed" placeholder="Parts Used"></textarea>
-    <input id="downtime" type="number" placeholder="Downtime (hours)">
-    <button onclick="addService()">Submit Log</button>
-  </div>
+<div class="card">
+<h3>Log Service</h3>
+<textarea id="details" placeholder="Work Performed"></textarea>
+<textarea id="partsUsed" placeholder="Parts Used"></textarea>
+<input id="downtime" type="number" placeholder="Downtime (hours)">
+<button onclick="addService()">Submit Log</button>
+</div>
 </div>
 
-<!-- LOCATION -->
+<!-- LOCATION TAB -->
 <div id="locationTab" class="hidden">
-  <div class="card">
-    <h3>Current Location</h3>
-    <div id="locationDisplay"></div>
-  </div>
+<div class="card">
+<h3>Current Location</h3>
+<div id="locationDisplay"></div>
+</div>
 
-  <div class="card">
-    <h3>Update Location</h3>
-    <input id="updateAirport" placeholder="Airport">
-    <input id="updateTerminal" placeholder="Terminal">
-    <input id="updateCheckpoint" placeholder="Checkpoint">
-    <input id="updateLane" placeholder="Lane">
-    <textarea id="updateNotes" placeholder="Notes"></textarea>
-    <button onclick="updateLocation()">Update Location</button>
-  </div>
+<div class="card">
+<h3>Update Location (If Moved)</h3>
+<input id="updateAirport" placeholder="Airport">
+<input id="updateTerminal" placeholder="Terminal">
+<input id="updateCheckpoint" placeholder="Checkpoint">
+<input id="updateLane" placeholder="Lane">
+<textarea id="updateNotes" placeholder="Position Notes"></textarea>
+<button onclick="updateLocation()">Update Location</button>
+</div>
 </div>
 
 </div>
 </div>
 
 <script>
-const API = "https://speedyreadr.onrender.com";
-let role = "", currentMachine = "", loggedTech = null, scanner = null;
+const API = "https://speedyreadr.onrender.com"; // replace with your Render URL
+let role="", currentMachine="", loggedTech=null, scanner=null;
 
-/* ---------- TECHS ---------- */
+// ---------- TECH MANAGEMENT ----------
 async function getTechs() {
-  const res = await fetch(API + "/techs");
-  return await res.json();
-}
-
-async function populateTechDropdown() {
-  const sel = document.getElementById("techSelect");
-  const techs = await getTechs();
-
-  sel.innerHTML = '<option value="">Select Technician</option>';
-  techs.forEach(t => {
-    sel.innerHTML += `
-      <option value="${t.id}" data-name="${t.name}" data-phone="${t.phone}">
-        ${t.name}
-      </option>`;
-  });
+    const res = await fetch(API+"/techs");
+    return await res.json();
 }
 
 async function addTechnician() {
-  const name = newTechName.value.trim();
-  const phone = newTechPhone.value.trim();
-  if (!name || !phone) return alert("Name and phone required");
+    const name=document.getElementById("newTechName").value;
+    const phone=document.getElementById("newTechPhone").value;
+    if(!name||!phone) return alert("Name and phone required");
 
-  const res = await fetch(API + "/techs", {
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({ name, phone })
-  });
-
-  if (!res.ok) return alert("Technician exists");
-  populateTechDropdown();
+    const res = await fetch(API+"/techs", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({name, phone})
+    });
+    const data = await res.json();
+    alert("Technician Added: "+data.name);
+    populateTechDropdown();
 }
 
-/* ---------- LOGIN ---------- */
-function toggleLoginFields() {
-  const r = roleSelect.value;
-  adminPassword.classList.toggle("hidden", r !== "Admin");
-  techLogin.classList.toggle("hidden", r !== "Tech");
+async function populateTechDropdown(){
+    const select=document.getElementById("techSelect");
+    const techs=await getTechs();
+    select.innerHTML='<option value="">Select Technician</option>';
+    techs.forEach((t,i)=>select.innerHTML+=`<option value="${i}" data-name="${t.name}" data-phone="${t.phone}">${t.name}</option>`);
 }
 
-function login() {
-  role = roleSelect.value;
-  loggedTech = null;
-
-  if (role === "Admin") {
-    if (adminPassword.value !== "1234") return alert("Wrong password");
-    adminPanel.classList.remove("hidden");
-  }
-
-  if (role === "Tech") {
-    const opt = techSelect.options[techSelect.selectedIndex];
-    if (!opt || !opt.value) return alert("Select technician");
-
-    loggedTech = {
-      id: opt.value,
-      name: opt.dataset.name,
-      phone: opt.dataset.phone
-    };
-  }
-
-  loginCard.classList.add("hidden");
-  dashboard.classList.remove("hidden");
-  userDisplay.innerText = role === "Tech"
-    ? `${loggedTech.name} (${loggedTech.phone})`
-    : role;
+// ---------- LOGIN ----------
+function toggleLoginFields(){
+    const selectedRole=document.getElementById("roleSelect").value;
+    document.getElementById("adminPassword").classList.toggle("hidden",selectedRole!=="Admin");
+    document.getElementById("techLogin").classList.toggle("hidden",selectedRole!=="Tech");
 }
 
-function logout(){ location.reload(); }
-
-/* ---------- MACHINES ---------- */
-async function loadMachine() {
-  const id = machineId.value.trim();
-  if (!id) return alert("Enter machine ID");
-
-  const res = await fetch(API + "/machines/" + id);
-  if (!res.ok) return alert("Machine not found");
-
-  currentMachine = id;
-  machineSection.classList.remove("hidden");
-  displayHistory();
-  loadLocation();
-}
-
-/* ---------- SERVICE ---------- */
-async function addService() {
-  if (!currentMachine) return alert("Load a machine first");
-  if (role !== "Tech" || !loggedTech) return alert("Tech login required");
-
-  const detailsVal = details.value.trim();
-  if (!detailsVal) return alert("Work performed required");
-
-  await fetch(API + "/logs", {
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({
-      machine_id: currentMachine,
-      tech_name: loggedTech.name,
-      tech_phone: loggedTech.phone,
-      details: detailsVal,
-      parts: partsUsed.value,
-      downtime: downtime.value || 0
-    })
-  });
-
-  details.value = partsUsed.value = downtime.value = "";
-  displayHistory();
-}
-
-async function displayHistory() {
-  const res = await fetch(API + "/logs/" + currentMachine);
-  const logs = await res.json();
-  history.innerHTML = "";
-
-  logs.forEach(l => {
-    history.innerHTML += `
-      <div class="log">
-        <strong>${new Date(l.date).toLocaleString()}</strong><br>
-        Tech: ${l.tech_name}<br>
-        Phone: ${l.tech_phone}<br>
-        Downtime: ${l.downtime} hrs<br>
-        Work: ${l.details}
-      </div>`;
-  });
-}
-
-/* ---------- LOCATION ---------- */
-async function loadLocation() {
-  const res = await fetch(API + "/machines/" + currentMachine);
-  const d = await res.json();
-
-  locationDisplay.innerHTML = `
-    Airport: ${d.airport || ""}<br>
-    Terminal: ${d.terminal || ""}<br>
-    Checkpoint: ${d.checkpoint || ""}<br>
-    Lane: ${d.lane || ""}<br>
-    Notes: ${d.notes || ""}
-  `;
-}
-
-async function updateLocation() {
-  await fetch(API + "/machines/" + currentMachine + "/location", {
-    method:"PUT",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({
-      airport: updateAirport.value,
-      terminal: updateTerminal.value,
-      checkpoint: updateCheckpoint.value,
-      lane: updateLane.value,
-      notes: updateNotes.value
-    })
-  });
-
-  loadLocation();
-}
-
-/* ---------- TABS ---------- */
-function showTab(id, btn) {
-  ["historyTab","logTab","locationTab"].forEach(t =>
-    document.getElementById(t).classList.add("hidden")
-  );
-  document.getElementById(id).classList.remove("hidden");
-
-  document.querySelectorAll(".tab-button").forEach(b =>
-    b.classList.remove("active")
-  );
-  btn.classList.add("active");
-}
-
-/* ---------- QR ---------- */
-function startScanner() {
-  reader.classList.remove("hidden");
-  scanner = new Html5Qrcode("reader");
-
-  scanner.start(
-    { facingMode:"environment" },
-    { fps:10, qrbox:250 },
-    qr => {
-      machineId.value = qr;
-      scanner.stop();
-      reader.classList.add("hidden");
+function login(){
+    role=document.getElementById("roleSelect").value;
+    if(role==="Admin"){
+        const pass=document.getElementById("adminPassword").value;
+        if(pass!=="1234") return alert("Incorrect Password");
+        document.getElementById("adminPanel").classList.remove("hidden");
     }
-  );
+
+    if(role==="Tech"){
+        const sel=document.getElementById("techSelect");
+        const index=sel.value;
+        if(index==="") return alert("Select Technician");
+        loggedTech = { name: sel.options[index].dataset.name, phone: sel.options[index].dataset.phone };
+    }
+
+    document.getElementById("loginCard").classList.add("hidden");
+    document.getElementById("dashboard").classList.remove("hidden");
+    document.getElementById("userDisplay").innerText=role==="Tech"?`${loggedTech.name} (${loggedTech.phone})`:role;
 }
 
-/* ---------- INIT ---------- */
+function logout(){ currentMachine=""; location.reload(); }
+
+// ---------- MACHINES ----------
+async function createMachine(){
+    const machine_id=document.getElementById("newMachineId").value.trim();
+    if(!machine_id) return alert("Machine ID required");
+
+    const data = {
+        machine_id,
+        airport: document.getElementById("airport").value,
+        terminal: document.getElementById("terminal").value,
+        checkpoint: document.getElementById("checkpoint").value,
+        lane: document.getElementById("lane").value,
+        notes: document.getElementById("notes").value
+    };
+
+    const res = await fetch(API+"/machines", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify(data)
+    });
+
+    const result = await res.json();
+    if(result.error) return alert(result.error);
+    alert("Machine Created: "+result.machine_id);
+}
+
+async function loadMachine(){
+    const id=document.getElementById("machineId").value.trim();
+    if(!id) return alert("Enter a Machine ID");
+
+    const res = await fetch(API+"/machines/"+id);
+    if(res.status!==200) return alert("Machine not found");
+
+    currentMachine=id;
+    document.getElementById("machineSection").classList.remove("hidden");
+    displayHistory();
+    loadLocation();
+}
+
+// ---------- SERVICE ----------
+async function getLogs(){
+    if(!currentMachine) return [];
+    const res = await fetch(API+"/logs/"+currentMachine);
+    return await res.json();
+}
+
+async function addService(){
+    if(role==="Supervisor") return alert("Supervisors cannot log service");
+    if(!currentMachine) return alert("Load a machine first");
+
+    const data = {
+        machine_id: currentMachine,
+        tech_name: loggedTech?.name || "N/A",
+        tech_phone: loggedTech?.phone || "N/A",
+        details: document.getElementById("details").value,
+        parts: document.getElementById("partsUsed").value,
+        downtime: document.getElementById("downtime").value || 0
+    };
+
+    const res = await fetch(API+"/logs", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify(data)
+    });
+
+    const result = await res.json();
+    alert("Service log submitted!");
+    document.getElementById("details").value="";
+    document.getElementById("partsUsed").value="";
+    document.getElementById("downtime").value="";
+    displayHistory();
+}
+
+async function displayHistory(){
+    const history=document.getElementById("history");
+    history.innerHTML="";
+    const logs=await getLogs();
+    logs.reverse().forEach(log=>{
+        history.innerHTML+=`
+        <div class="log">
+        <strong>${new Date(log.date).toLocaleString()}</strong><br>
+        Tech: ${log.tech_name}<br>
+        Phone: ${log.tech_phone}<br>
+        Downtime: ${log.downtime} hrs<br>
+        Work: ${log.details}${log.parts ? "<br>Parts: "+log.parts : "" }
+        </div>`;
+    });
+}
+
+// ---------- LOCATION ----------
+async function loadLocation(){
+    const res = await fetch(API+"/machines/"+currentMachine);
+    const data = await res.json();
+    const display=document.getElementById("locationDisplay");
+    if(!data) return display.innerHTML="No location set.";
+    display.innerHTML=`Airport: ${data.airport}<br>Terminal: ${data.terminal}<br>Checkpoint: ${data.checkpoint}<br>Lane: ${data.lane}<br>Notes: ${data.notes}`;
+}
+
+async function updateLocation(){
+    const oldDataRes = await fetch(API+"/machines/"+currentMachine);
+    const oldData = await oldDataRes.json();
+
+    const newData={
+        airport: document.getElementById("updateAirport").value,
+        terminal: document.getElementById("updateTerminal").value,
+        checkpoint: document.getElementById("updateCheckpoint").value,
+        lane: document.getElementById("updateLane").value,
+        notes: document.getElementById("updateNotes").value
+    };
+
+    // Update machine location
+    await fetch(API+"/machines/"+currentMachine+"/location", {
+        method:"PUT",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify(newData)
+    });
+
+    // Log location change as service log
+    const details = `Machine moved from Airport: ${oldData.airport}, Terminal: ${oldData.terminal}, Checkpoint: ${oldData.checkpoint}, Lane: ${oldData.lane}, Notes: ${oldData.notes} To Airport: ${newData.airport}, Terminal: ${newData.terminal}, Checkpoint: ${newData.checkpoint}, Lane: ${newData.lane}, Notes: ${newData.notes}`;
+    await fetch(API+"/logs", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+            machine_id: currentMachine,
+            tech_name: loggedTech?.name || "N/A",
+            tech_phone: loggedTech?.phone || "N/A",
+            details,
+            parts:"",
+            downtime:0
+        })
+    });
+
+    alert("Location updated and logged in history");
+    loadLocation();
+    displayHistory();
+}
+
+// ---------- TABS ----------
+function showTab(tabId,btn){
+    document.getElementById("historyTab").classList.add("hidden");
+    document.getElementById("logTab").classList.add("hidden");
+    document.getElementById("locationTab").classList.add("hidden");
+    document.getElementById(tabId).classList.remove("hidden");
+    document.querySelectorAll(".tab-button").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+}
+
+// ---------- QR ----------
+function startScanner(){
+    const reader=document.getElementById("reader");
+    reader.classList.remove("hidden");
+    scanner=new Html5Qrcode("reader");
+    scanner.start(
+        {facingMode:"environment"},
+        {fps:10,qrbox:250},
+        qr=>{
+            document.getElementById("machineId").value=qr;
+            scanner.stop();
+            reader.classList.add("hidden");
+        }
+    );
+}
+
+// ---------- INIT ----------
 populateTechDropdown();
 </script>
-
 </body>
 </html>
+
+
