@@ -68,11 +68,9 @@ app.post("/techs", async (req, res) => {
     res.json(result.rows[0]);
 });
 
-// UPDATE TECHNICIAN
 app.put("/techs/:id", async (req, res) => {
     const { id } = req.params;
     const { name, phone } = req.body;
-    if (!name || !phone) return res.status(400).json({ error: "Name and phone required" });
     const result = await pool.query(
         "UPDATE technicians SET name=$1, phone=$2 WHERE id=$3 RETURNING *",
         [name, phone, id]
@@ -80,7 +78,6 @@ app.put("/techs/:id", async (req, res) => {
     res.json(result.rows[0]);
 });
 
-// DELETE TECHNICIAN
 app.delete("/techs/:id", async (req, res) => {
     const { id } = req.params;
     await pool.query("DELETE FROM technicians WHERE id=$1", [id]);
@@ -114,27 +111,6 @@ app.post("/machines", async (req, res) => {
     }
 });
 
-// UPDATE MACHINE
-app.put("/machines/:id", async (req, res) => {
-    const { id } = req.params;
-    const { airport, terminal, checkpoint, lane, notes } = req.body;
-    const result = await pool.query(
-        `UPDATE machines 
-         SET airport=$1, terminal=$2, checkpoint=$3, lane=$4, notes=$5 
-         WHERE machine_id=$6 RETURNING *`,
-        [airport, terminal, checkpoint, lane, notes, id]
-    );
-    res.json(result.rows[0]);
-});
-
-// DELETE MACHINE
-app.delete("/machines/:id", async (req, res) => {
-    const { id } = req.params;
-    await pool.query("DELETE FROM machines WHERE machine_id=$1", [id]);
-    res.json({ message: "Machine deleted" });
-});
-
-// UPDATE MACHINE LOCATION
 app.put("/machines/:id/location", async (req, res) => {
     const { id } = req.params;
     const { airport, terminal, checkpoint, lane, notes } = req.body;
