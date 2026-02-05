@@ -55,7 +55,7 @@ initDB().catch(console.error);
 // ---------- TECHNICIANS ----------
 app.get("/techs", async (req, res) => {
     const result = await pool.query("SELECT * FROM technicians ORDER BY id ASC");
-    res.json(result.rows);
+    res.json(result.rows); // returns flat array [{id,name,phone}, ...]
 });
 
 app.post("/techs", async (req, res) => {
@@ -68,33 +68,12 @@ app.post("/techs", async (req, res) => {
     res.json(result.rows[0]);
 });
 
-app.put("/techs/:id", async (req, res) => {
-    const { id } = req.params;
-    const { name, phone } = req.body;
-    const result = await pool.query(
-        "UPDATE technicians SET name=$1, phone=$2 WHERE id=$3 RETURNING *",
-        [name, phone, id]
-    );
-    res.json(result.rows[0]);
-});
-
-app.delete("/techs/:id", async (req, res) => {
-    const { id } = req.params;
-    await pool.query("DELETE FROM technicians WHERE id=$1", [id]);
-    res.json({ message: "Technician deleted" });
-});
-
 // ---------- MACHINES ----------
 app.get("/machines/:id", async (req, res) => {
     const { id } = req.params;
     const result = await pool.query("SELECT * FROM machines WHERE machine_id=$1", [id]);
     if(result.rows.length === 0) return res.status(404).json({ error: "Machine not found" });
     res.json(result.rows[0]);
-});
-
-app.get("/machinesList", async (req, res) => {
-    const result = await pool.query("SELECT * FROM machines ORDER BY id ASC");
-    res.json(result.rows);
 });
 
 app.post("/machines", async (req, res) => {
