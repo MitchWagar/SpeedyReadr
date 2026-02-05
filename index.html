@@ -107,8 +107,13 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 <div id="logTab" class="hidden">
 <div class="card">
 <h3>Log Service</h3>
+<input id="workOrder" placeholder="Work Order #" />
 <textarea id="details" placeholder="Work Performed"></textarea>
-<textarea id="partsUsed" placeholder="Parts Used"></textarea>
+<input id="part1" placeholder="Part 1" />
+<input id="part2" placeholder="Part 2" />
+<input id="part3" placeholder="Part 3" />
+<input id="part4" placeholder="Part 4" />
+<input id="part5" placeholder="Part 5" />
 <input id="downtime" type="number" placeholder="Downtime (hours)">
 <button onclick="addService()">Submit Log</button>
 </div>
@@ -142,7 +147,7 @@ let role="", currentMachine="", loggedTech=null, scanner=null;
 // ---------- TECH ----------
 async function getTechs() {
     const res = await fetch(API+"/techs");
-    return await res.json(); // [{id,name,phone}, ...]
+    return await res.json();
 }
 
 async function populateTechDropdown(){
@@ -241,23 +246,40 @@ async function getLogs(){
 async function addService(){
     if(role==="Supervisor") return alert("Supervisors cannot log service");
     if(!currentMachine) return alert("Load a machine first");
+
+    const parts = [
+        document.getElementById("part1").value,
+        document.getElementById("part2").value,
+        document.getElementById("part3").value,
+        document.getElementById("part4").value,
+        document.getElementById("part5").value
+    ].filter(p=>p).join(", ");
+
     const data = {
         machine_id: currentMachine,
+        work_order: document.getElementById("workOrder").value || "",
         tech_name: loggedTech?.name || "N/A",
         tech_phone: loggedTech?.phone || "N/A",
         details: document.getElementById("details").value,
-        parts: document.getElementById("partsUsed").value,
+        parts,
         downtime: document.getElementById("downtime").value || 0
     };
+
     const res = await fetch(API+"/logs", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify(data)
     });
     await res.json();
+
     alert("Service log submitted!");
+    document.getElementById("workOrder").value="";
     document.getElementById("details").value="";
-    document.getElementById("partsUsed").value="";
+    document.getElementById("part1").value="";
+    document.getElementById("part2").value="";
+    document.getElementById("part3").value="";
+    document.getElementById("part4").value="";
+    document.getElementById("part5").value="";
     document.getElementById("downtime").value="";
     displayHistory();
 }
@@ -270,6 +292,7 @@ async function displayHistory(){
         history.innerHTML+=`
         <div class="log">
         <strong>${new Date(log.date).toLocaleString()}</strong><br>
+        Work Order: ${log.work_order || "-"}<br>
         Tech: ${log.tech_name}<br>
         Phone: ${log.tech_phone}<br>
         Downtime: ${log.downtime} hrs<br>
@@ -309,6 +332,7 @@ async function updateLocation(){
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
             machine_id: currentMachine,
+            work_order: "",
             tech_name: loggedTech?.name || "N/A",
             tech_phone: loggedTech?.phone || "N/A",
             details,
@@ -352,4 +376,3 @@ populateTechDropdown();
 </script>
 </body>
 </html>
-
