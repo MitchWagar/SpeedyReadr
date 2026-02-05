@@ -45,9 +45,7 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
   </select>
 
   <div id="techLogin">
-    <select id="techSelect">
-      <option value="">Select Technician</option>
-    </select>
+    <select id="techSelect"></select>
   </div>
 
   <input type="password" id="adminPassword" class="hidden" placeholder="Admin Password">
@@ -80,8 +78,10 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 <div class="tabs">
   <button class="tab-button active" onclick="showTab('historyTab', this)">Service History</button>
   <button class="tab-button" onclick="showTab('logTab', this)">Log Service</button>
+  <button class="tab-button" onclick="showTab('locationTab', this)">Location</button>
 </div>
 
+<!-- HISTORY -->
 <div id="historyTab">
   <div class="card">
     <h3>Service History</h3>
@@ -89,6 +89,7 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
   </div>
 </div>
 
+<!-- LOG SERVICE -->
 <div id="logTab" class="hidden">
   <div class="card">
     <h3>Log Service</h3>
@@ -99,33 +100,44 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
   </div>
 </div>
 
+<!-- LOCATION -->
+<div id="locationTab" class="hidden">
+  <div class="card">
+    <h3>Current Location</h3>
+    <div id="locationDisplay"></div>
+  </div>
+
+  <div class="card">
+    <h3>Update Location</h3>
+    <input id="updateAirport" placeholder="Airport">
+    <input id="updateTerminal" placeholder="Terminal">
+    <input id="updateCheckpoint" placeholder="Checkpoint">
+    <input id="updateLane" placeholder="Lane">
+    <textarea id="updateNotes" placeholder="Notes"></textarea>
+    <button onclick="updateLocation()">Update Location</button>
+  </div>
+</div>
+
 </div>
 </div>
 
 <script>
-/* ================== CONFIG ================== */
 const API = "https://speedyreadr.onrender.com";
+let role = "", currentMachine = "", loggedTech = null, scanner = null;
 
-/* ================== STATE ================== */
-let role = "";
-let currentMachine = "";
-let loggedTech = null;
-let scanner = null;
-
-/* ================== TECHS ================== */
+/* ---------- TECHS ---------- */
 async function getTechs() {
   const res = await fetch(API + "/techs");
   return await res.json();
 }
 
 async function populateTechDropdown() {
-  const select = document.getElementById("techSelect");
+  const sel = document.getElementById("techSelect");
   const techs = await getTechs();
 
-  select.innerHTML = '<option value="">Select Technician</option>';
-
+  sel.innerHTML = '<option value="">Select Technician</option>';
   techs.forEach(t => {
-    select.innerHTML += `
+    sel.innerHTML += `
       <option value="${t.id}" data-name="${t.name}" data-phone="${t.phone}">
         ${t.name}
       </option>`;
@@ -133,44 +145,39 @@ async function populateTechDropdown() {
 }
 
 async function addTechnician() {
-  const name = document.getElementById("newTechName").value.trim();
-  const phone = document.getElementById("newTechPhone").value.trim();
+  const name = newTechName.value.trim();
+  const phone = newTechPhone.value.trim();
   if (!name || !phone) return alert("Name and phone required");
 
   const res = await fetch(API + "/techs", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, phone })
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify({ name, phone })
   });
 
-  if (!res.ok) return alert("Technician already exists");
-
-  alert("Technician added");
+  if (!res.ok) return alert("Technician exists");
   populateTechDropdown();
 }
 
-/* ================== LOGIN ================== */
+/* ---------- LOGIN ---------- */
 function toggleLoginFields() {
-  const roleSel = document.getElementById("roleSelect").value;
-  document.getElementById("adminPassword").classList.toggle("hidden", roleSel !== "Admin");
-  document.getElementById("techLogin").classList.toggle("hidden", roleSel !== "Tech");
+  const r = roleSelect.value;
+  adminPassword.classList.toggle("hidden", r !== "Admin");
+  techLogin.classList.toggle("hidden", r !== "Tech");
 }
 
 function login() {
-  role = document.getElementById("roleSelect").value;
+  role = roleSelect.value;
   loggedTech = null;
 
   if (role === "Admin") {
-    const pass = document.getElementById("adminPassword").value;
-    if (pass !== "1234") return alert("Wrong password");
-    document.getElementById("adminPanel").classList.remove("hidden");
+    if (adminPassword.value !== "1234") return alert("Wrong password");
+    adminPanel.classList.remove("hidden");
   }
 
   if (role === "Tech") {
-    const sel = document.getElementById("techSelect");
-    const opt = sel.options[sel.selectedIndex];
-
-    if (!opt || !opt.value) return alert("Select a technician");
+    const opt = techSelect.options[techSelect.selectedIndex];
+    if (!opt || !opt.value) return alert("Select technician");
 
     loggedTech = {
       id: opt.value,
@@ -179,67 +186,59 @@ function login() {
     };
   }
 
-  document.getElementById("loginCard").classList.add("hidden");
-  document.getElementById("dashboard").classList.remove("hidden");
-
-  document.getElementById("userDisplay").innerText =
-    role === "Tech" ? `${loggedTech.name} (${loggedTech.phone})` : role;
+  loginCard.classList.add("hidden");
+  dashboard.classList.remove("hidden");
+  userDisplay.innerText = role === "Tech"
+    ? `${loggedTech.name} (${loggedTech.phone})`
+    : role;
 }
 
-function logout() {
-  location.reload();
-}
+function logout(){ location.reload(); }
 
-/* ================== MACHINES ================== */
+/* ---------- MACHINES ---------- */
 async function loadMachine() {
-  const id = document.getElementById("machineId").value.trim();
+  const id = machineId.value.trim();
   if (!id) return alert("Enter machine ID");
 
   const res = await fetch(API + "/machines/" + id);
   if (!res.ok) return alert("Machine not found");
 
   currentMachine = id;
-  document.getElementById("machineSection").classList.remove("hidden");
+  machineSection.classList.remove("hidden");
   displayHistory();
+  loadLocation();
 }
 
-/* ================== SERVICE ================== */
+/* ---------- SERVICE ---------- */
 async function addService() {
-  if (role !== "Tech" || !loggedTech) {
-    return alert("Must be logged in as technician");
-  }
+  if (!currentMachine) return alert("Load a machine first");
+  if (role !== "Tech" || !loggedTech) return alert("Tech login required");
 
-  const details = document.getElementById("details").value.trim();
-  if (!details) return alert("Work performed required");
+  const detailsVal = details.value.trim();
+  if (!detailsVal) return alert("Work performed required");
 
-  const res = await fetch(API + "/logs", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  await fetch(API + "/logs", {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify({
       machine_id: currentMachine,
       tech_name: loggedTech.name,
       tech_phone: loggedTech.phone,
-      details,
-      parts: document.getElementById("partsUsed").value,
-      downtime: document.getElementById("downtime").value || 0
+      details: detailsVal,
+      parts: partsUsed.value,
+      downtime: downtime.value || 0
     })
   });
 
-  if (!res.ok) return alert("Failed to log service");
-
-  document.getElementById("details").value = "";
-  document.getElementById("partsUsed").value = "";
-  document.getElementById("downtime").value = "";
-
+  details.value = partsUsed.value = downtime.value = "";
   displayHistory();
 }
 
 async function displayHistory() {
   const res = await fetch(API + "/logs/" + currentMachine);
   const logs = await res.json();
-  const history = document.getElementById("history");
-
   history.innerHTML = "";
+
   logs.forEach(l => {
     history.innerHTML += `
       <div class="log">
@@ -252,24 +251,66 @@ async function displayHistory() {
   });
 }
 
-/* ================== QR ================== */
-function startScanner() {
-  const reader = document.getElementById("reader");
-  reader.classList.remove("hidden");
+/* ---------- LOCATION ---------- */
+async function loadLocation() {
+  const res = await fetch(API + "/machines/" + currentMachine);
+  const d = await res.json();
 
+  locationDisplay.innerHTML = `
+    Airport: ${d.airport || ""}<br>
+    Terminal: ${d.terminal || ""}<br>
+    Checkpoint: ${d.checkpoint || ""}<br>
+    Lane: ${d.lane || ""}<br>
+    Notes: ${d.notes || ""}
+  `;
+}
+
+async function updateLocation() {
+  await fetch(API + "/machines/" + currentMachine + "/location", {
+    method:"PUT",
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify({
+      airport: updateAirport.value,
+      terminal: updateTerminal.value,
+      checkpoint: updateCheckpoint.value,
+      lane: updateLane.value,
+      notes: updateNotes.value
+    })
+  });
+
+  loadLocation();
+}
+
+/* ---------- TABS ---------- */
+function showTab(id, btn) {
+  ["historyTab","logTab","locationTab"].forEach(t =>
+    document.getElementById(t).classList.add("hidden")
+  );
+  document.getElementById(id).classList.remove("hidden");
+
+  document.querySelectorAll(".tab-button").forEach(b =>
+    b.classList.remove("active")
+  );
+  btn.classList.add("active");
+}
+
+/* ---------- QR ---------- */
+function startScanner() {
+  reader.classList.remove("hidden");
   scanner = new Html5Qrcode("reader");
+
   scanner.start(
-    { facingMode: "environment" },
-    { fps: 10, qrbox: 250 },
+    { facingMode:"environment" },
+    { fps:10, qrbox:250 },
     qr => {
-      document.getElementById("machineId").value = qr;
+      machineId.value = qr;
       scanner.stop();
       reader.classList.add("hidden");
     }
   );
 }
 
-/* ================== INIT ================== */
+/* ---------- INIT ---------- */
 populateTechDropdown();
 </script>
 
