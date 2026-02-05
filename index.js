@@ -197,7 +197,7 @@ app.put("/machines/:id/location", async (req, res) => {
     // Insert the location change as a service log
     await pool.query(
         `INSERT INTO service_logs (machine_id, tech_name, tech_phone, details, parts, downtime)
-         VALUES ($1, $2, $3, $4, $6) RETURNING *`,
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
         [id, "SYSTEM", "N/A", locationChangeDetails, "", 0]
     );
     
