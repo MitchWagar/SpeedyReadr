@@ -63,15 +63,6 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 <button onclick="addTechnician()">Add Technician</button>
 </div>
 
-    <div id="adminPanel" class="hidden">
-    <!-- ... existing admin panel content ... -->
-
-    <div class="card">
-        <h3>Manage Service Logs</h3>
-        <div id="serviceLogList"></div>
-    </div>
-</div>
-
 <div class="card">
 <h3>Add New Machine</h3>
 <input id="newMachineId" placeholder="Machine ID">
@@ -497,75 +488,12 @@ async function deleteMachine(machineId) {
         alert("Failed to delete machine");
     }
 }
-// ---------- SERVICE LOG MANAGEMENT ----------
-async function displayServiceLogs() {
-    const serviceLogList = document.getElementById("serviceLogList");
-    
-    try {
-        // Get all machines to show machine info
-        const machines = await getMachines();
-        const machineMap = machines.reduce((acc, machine) => {
-            acc[machine.machine_id] = machine;
-            return acc;
-        }, {});
-        
-        // Get all service logs
-        const logs = await getLogs();
-        
-        serviceLogList.innerHTML = logs.map(log => {
-            const machine = machineMap[log.machine_id] || { machine_id: log.machine_id };
-            return `
-                <div class="card" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                    <div>
-                        <strong>Machine: ${log.machine_id}</strong><br>
-                        Date: ${new Date(log.date).toLocaleString()}<br>
-                        Tech: ${log.tech_name}<br>
-                        Downtime: ${log.downtime} hrs
-                    </div>
-                    <div>
-                        <button onclick="deleteServiceLog(${log.id})" style="background:#ef4444;">Delete Log</button>
-                    </div>
-                </div>
-            `;
-        }).join('');
-    } catch (error) {
-        serviceLogList.innerHTML = '<p>Error loading service logs</p>';
-        console.error("Error loading service logs:", error);
-    }
-}
-
-async function deleteServiceLog(logId) {
-    if (!confirm("Are you sure you want to delete this service log?")) return;
-    
-    try {
-        const res = await fetch(API+"/logs/" + logId, {
-            method: "DELETE"
-        });
-        
-        if (res.ok) {
-            alert("Service log deleted successfully!");
-            displayServiceLogs(); // Refresh the list
-            displayHistory(); // Refresh the history tab
-        } else {
-            const error = await res.json();
-            alert("Failed to delete service log: " + error.error);
-        }
-    } catch (error) {
-        alert("Error deleting service log: " + error.message);
-    }
-}
 
 // ---------- INIT ----------
 populateTechDropdown();
 displayMachines();
-displayServiceLogs(); // Add this to show service logs on init
-// ---------- INIT ----------
-populateTechDropdown();
-displayMachines();
-displayServiceLogs();
 </script>
 </body>
 </html>
-
 
 
