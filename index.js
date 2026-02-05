@@ -1,3 +1,4 @@
+```javascript
 // index.js
 const express = require("express");
 const cors = require("cors");
@@ -168,11 +169,40 @@ app.delete("/machines/:id", async (req, res) => {
 app.put("/machines/:id/location", async (req, res) => {
     const { id } = req.params;
     const { airport, terminal, checkpoint, lane, notes } = req.body;
+    
+    // Get the current machine data before updating
+    const getCurrentMachine = await pool.query("SELECT * FROM machines WHERE machine_id=$1", [id]);
+    const oldMachine = getCurrentMachine.rows[0];
+    
+    // Update the machine location
     const result = await pool.query(
         `UPDATE machines SET airport=$1, terminal=$2, checkpoint=$3, lane=$4, notes=$5
          WHERE machine_id=$6 RETURNING *`,
         [airport, terminal, checkpoint, lane, notes, id]
     );
+    
+    // Create a location change log entry
+    const locationChangeDetails = `Location changed from:
+    Airport: ${oldMachine.airport || 'N/A'}, 
+    Terminal: ${oldMachine.terminal || 'N/A'}, 
+    Checkpoint: ${oldMachine.checkpoint || 'N/A'}, 
+    Lane: ${oldMachine.lane || 'N/A'}, 
+    Notes: ${oldMachine.notes || 'N/A'}
+    
+    To:
+    Airport: ${airport || 'N/A'}, 
+    Terminal: ${terminal || 'N/A'}, 
+    Checkpoint: ${checkpoint || 'N/A'}, 
+    Lane: ${lane || 'N/A'}, 
+    Notes: ${notes || 'N/A'}`;
+    
+    // Insert the location change as a service log
+    await pool.query(
+        `INSERT INTO service_logs (machine_id, tech_name, tech_phone, details, parts, downtime)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [id, "SYSTEM", "N/A", locationChangeDetails, "", 0]
+    );
+    
     res.json(result.rows[0]);
 });
 
@@ -199,4 +229,4 @@ app.post("/logs", async (req, res) => {
 // ---------- SERVER ----------
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`Servi-Sync server running on port ${PORT}`));
-
+```
