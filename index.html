@@ -6,6 +6,7 @@
 <title>Servi-Sync Enterprise</title>
 <script src="https://unpkg.com/html5-qrcode"></script>
 <style>
+/* basic styling */
 body { font-family: Arial, sans-serif; margin:0; background:#eef2f7; }
 header { background:#0f172a; color:white; padding:15px; display:flex; justify-content:space-between; align-items:center; }
 .container { padding:20px; max-width:1100px; margin:auto; }
@@ -19,7 +20,6 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 .tab-button { background:#cbd5e1; color:black; }
 .tab-button.active { background:#2563eb; color:white; }
 #reader { width:300px; margin-top:10px; }
-.parts-inputs input { width:19%; margin-right:1%; display:inline-block; }
 </style>
 </head>
 <body>
@@ -55,6 +55,7 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 
 <!-- ADMIN PANEL -->
 <div id="adminPanel" class="hidden">
+
 <div class="card">
 <h3>Add Technician</h3>
 <input id="newTechName" placeholder="Technician Name">
@@ -72,6 +73,7 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 <textarea id="notes" placeholder="Position Notes"></textarea>
 <button onclick="createMachine()">Create Machine</button>
 </div>
+
 </div>
 
 <!-- DASHBOARD -->
@@ -105,15 +107,8 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 <div id="logTab" class="hidden">
 <div class="card">
 <h3>Log Service</h3>
-<input id="workOrder" placeholder="Work Order #">
 <textarea id="details" placeholder="Work Performed"></textarea>
-<div class="parts-inputs">
-<input id="part1" placeholder="Part 1">
-<input id="part2" placeholder="Part 2">
-<input id="part3" placeholder="Part 3">
-<input id="part4" placeholder="Part 4">
-<input id="part5" placeholder="Part 5">
-</div>
+<textarea id="partsUsed" placeholder="Parts Used"></textarea>
 <input id="downtime" type="number" placeholder="Downtime (hours)">
 <button onclick="addService()">Submit Log</button>
 </div>
@@ -147,7 +142,7 @@ let role="", currentMachine="", loggedTech=null, scanner=null;
 // ---------- TECH ----------
 async function getTechs() {
     const res = await fetch(API+"/techs");
-    return await res.json();
+    return await res.json(); // [{id,name,phone}, ...]
 }
 
 async function populateTechDropdown(){
@@ -246,32 +241,23 @@ async function getLogs(){
 async function addService(){
     if(role==="Supervisor") return alert("Supervisors cannot log service");
     if(!currentMachine) return alert("Load a machine first");
-
     const data = {
         machine_id: currentMachine,
         tech_name: loggedTech?.name || "N/A",
         tech_phone: loggedTech?.phone || "N/A",
-        work_order: document.getElementById("workOrder").value,
         details: document.getElementById("details").value,
-        part1: document.getElementById("part1").value,
-        part2: document.getElementById("part2").value,
-        part3: document.getElementById("part3").value,
-        part4: document.getElementById("part4").value,
-        part5: document.getElementById("part5").value,
+        parts: document.getElementById("partsUsed").value,
         downtime: document.getElementById("downtime").value || 0
     };
-
     const res = await fetch(API+"/logs", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify(data)
     });
     await res.json();
-
     alert("Service log submitted!");
-    document.getElementById("workOrder").value="";
     document.getElementById("details").value="";
-    ["part1","part2","part3","part4","part5"].forEach(id=>document.getElementById(id).value="");
+    document.getElementById("partsUsed").value="";
     document.getElementById("downtime").value="";
     displayHistory();
 }
@@ -284,12 +270,10 @@ async function displayHistory(){
         history.innerHTML+=`
         <div class="log">
         <strong>${new Date(log.date).toLocaleString()}</strong><br>
-        Work Order: ${log.work_order || "N/A"}<br>
         Tech: ${log.tech_name}<br>
         Phone: ${log.tech_phone}<br>
         Downtime: ${log.downtime} hrs<br>
-        Work: ${log.details}
-        ${log.part1||log.part2||log.part3||log.part4||log.part5 ? "<br>Parts: "+[log.part1,log.part2,log.part3,log.part4,log.part5].filter(Boolean).join(", ") : ""}
+        Work: ${log.details}${log.parts ? "<br>Parts: "+log.parts : "" }
         </div>`;
     });
 }
@@ -318,6 +302,7 @@ async function updateLocation(){
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify(newData)
     });
+    // Log location update
     const details = `Moved from Airport: ${oldData.airport}, Terminal: ${oldData.terminal}, Checkpoint: ${oldData.checkpoint}, Lane: ${oldData.lane}, Notes: ${oldData.notes} To Airport: ${newData.airport}, Terminal: ${newData.terminal}, Checkpoint: ${newData.checkpoint}, Lane: ${newData.lane}, Notes: ${newData.notes}`;
     await fetch(API+"/logs", {
         method:"POST",
@@ -326,9 +311,8 @@ async function updateLocation(){
             machine_id: currentMachine,
             tech_name: loggedTech?.name || "N/A",
             tech_phone: loggedTech?.phone || "N/A",
-            work_order: "LOCATION UPDATE",
             details,
-            part1:"", part2:"", part3:"", part4:"", part5:"",
+            parts:"",
             downtime:0
         })
     });
@@ -368,3 +352,4 @@ populateTechDropdown();
 </script>
 </body>
 </html>
+
