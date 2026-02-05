@@ -74,6 +74,11 @@ input, select, textarea { width:100%; padding:8px; margin:8px 0; border-radius:6
 <button onclick="createMachine()">Create Machine</button>
 </div>
 
+<div class="card">
+    <h3>Manage Technicians</h3>
+    <div id="techList"></div>
+</div>
+
 </div>
 
 <!-- DASHBOARD -->
@@ -152,6 +157,7 @@ async function populateTechDropdown(){
     techs.forEach(t=>{
         select.innerHTML += `<option value="${t.id}" data-name="${t.name}" data-phone="${t.phone}">${t.name}</option>`;
     });
+    displayTechnicians();
 }
 
 async function addTechnician(){
@@ -347,9 +353,66 @@ function startScanner(){
     );
 }
 
+// ---------- TECHNICIAN MANAGEMENT ----------
+async function displayTechnicians() {
+    const techList = document.getElementById("techList");
+    const techs = await getTechs();
+    
+    techList.innerHTML = techs.map(tech => `
+        <div class="card" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div>
+                <strong>${tech.name}</strong> - ${tech.phone}
+            </div>
+            <div>
+                <button onclick="editTechnician(${tech.id})" style="background:#f59e0b; margin-right:5px;">Edit</button>
+                <button onclick="deleteTechnician(${tech.id})" style="background:#ef4444;">Delete</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function editTechnician(id) {
+    const techs = await getTechs();
+    const tech = techs.find(t => t.id === id);
+    
+    const newName = prompt("Edit Technician Name:", tech.name);
+    const newPhone = prompt("Edit Phone Number:", tech.phone);
+    
+    if (newName && newPhone) {
+        const res = await fetch(API+"/techs/" + id, {
+            method: "PUT",
+            headers: {"Content-Type":"application/json"},
+            body: JSON.stringify({name: newName, phone: newPhone})
+        });
+        
+        if (res.ok) {
+            alert("Technician updated successfully!");
+            displayTechnicians();
+            populateTechDropdown();
+        } else {
+            alert("Failed to update technician");
+        }
+    }
+}
+
+async function deleteTechnician(id) {
+    if (!confirm("Are you sure you want to delete this technician?")) return;
+    
+    const res = await fetch(API+"/techs/" + id, {
+        method: "DELETE"
+    });
+    
+    if (res.ok) {
+        alert("Technician deleted successfully!");
+        displayTechnicians();
+        populateTechDropdown();
+    } else {
+        alert("Failed to delete technician");
+    }
+}
+
 // ---------- INIT ----------
 populateTechDropdown();
 </script>
 </body>
 </html>
-
