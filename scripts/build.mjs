@@ -1,0 +1,6 @@
+import fs from 'node:fs/promises';
+const assets={};for(const [path,file,type] of [['/','index.html','text/html; charset=utf-8'],['/index.html','index.html','text/html; charset=utf-8'],['/app.js','app.js','text/javascript; charset=utf-8'],['/import.js','import.js','text/javascript; charset=utf-8'],['/style.css','style.css','text/css; charset=utf-8']])assets[path]={body:await fs.readFile(new URL('../dist/'+file,import.meta.url),'utf8'),type};
+for(const file of ['pdf-import.js','vendor/pdf.min.mjs','vendor/pdf.worker.min.mjs','vendor/pdfjs-LICENSE'])assets['/'+file]={body:await fs.readFile(new URL('../dist/'+file,import.meta.url),'utf8'),type:file.endsWith('LICENSE')?'text/plain; charset=utf-8':'text/javascript; charset=utf-8'};
+const source=await fs.readFile(new URL('../server/worker.mjs',import.meta.url),'utf8');await fs.mkdir(new URL('../dist/server/',import.meta.url),{recursive:true});await fs.writeFile(new URL('../dist/server/index.js',import.meta.url),'const ASSETS='+JSON.stringify(assets)+';\n'+source);console.log('Built reader and private bookmark API.');
+
+await fs.mkdir(new URL('../dist/.openai/',import.meta.url),{recursive:true});await fs.copyFile(new URL('../.openai/hosting.json',import.meta.url),new URL('../dist/.openai/hosting.json',import.meta.url));
