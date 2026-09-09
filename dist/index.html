@@ -1,121 +1,262 @@
-// Local bookmark storage — nothing is sent to a server.
-const BOOKMARKS_KEY = "speedy-readr-bookmarks";
+<!doctype html> <html lang="en"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width,initial-scale=1"> <meta name="theme-color" content="#101419"> <title>Speedy Readr</title> <link rel="stylesheet" href="style.css"> </head> <body> <main> <header> <a class="brand" href="./" aria-label="Speedy Readr home"> <span class="logo">ıı</span> Speedy Readr <span class="brand-note">WORD READER</span> </a>
+<span class="privacy">
+    One word. One place. Your pace.
+</span>
 
-function getBookmarks() {
-  try {
-    return JSON.parse(localStorage.getItem(BOOKMARKS_KEY)) || [];
-  } catch {
-    return [];
-  }
-}
+</header> <div class="workspace">
+<section class="reading" aria-label="Word reader">
 
-function saveBookmarks(bookmarks) {
-  localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
-}
+    <div class="progress-line">
+        <span id="position">1 / 49 words</span>
+        <span id="percent">0%</span>
+    </div>
 
-function getBookId() {
-  // Give pasted/current text a stable ID based on its contents.
-  const text = document.getElementById("text").value.trim();
+    <div class="position-scrubber">
+        <label class="sr-only" for="progress">
+            Book position in percent
+        </label>
 
-  let hash = 0;
-  for (let i = 0; i < text.length; i++) {
-    hash = ((hash << 5) - hash) + text.charCodeAt(i);
-    hash |= 0;
-  }
+        <input
+            id="progress"
+            type="range"
+            min="0"
+            max="100"
+            step="0.1"
+            value="0"
+            aria-label="Book position in percent"
+        >
 
-  return "book-" + Math.abs(hash);
-}
+        <form id="jumpForm" class="jump-row">
+            <label for="jumpPercent">Jump to</label>
 
-function renderBookmarks() {
-  const select = document.getElementById("bookmarks");
-  const restoreButton = document.getElementById("restoreBookmark");
+            <input
+                id="jumpPercent"
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                placeholder="26"
+                required
+                aria-label="Percentage of book"
+            >
 
-  const bookmarks = getBookmarks();
+            <span>%</span>
 
-  select.innerHTML = "";
+            <button type="submit">Go</button>
 
-  if (bookmarks.length === 0) {
-    select.innerHTML = '<option value="">No bookmarks saved</option>';
-    restoreButton.disabled = true;
-    return;
-  }
+            <span class="scrub-hint">
+                Drag the slider to browse
+            </span>
+        </form>
+    </div>
 
-  bookmarks.forEach((bookmark, index) => {
-    const option = document.createElement("option");
+    <div class="section-heading">
+        <span class="eyebrow">FOCUS</span>
+        <span id="status" role="status">Ready to read</span>
+    </div>
 
-    option.value = index;
+    <div
+        id="pad"
+        class="pad"
+        role="button"
+        tabindex="0"
+        aria-label="Hold to read. Release to pause and rewind ten words. Hold Space for keyboard reading."
+    >
+        <div class="guide top"></div>
 
-    const date = new Date(bookmark.createdAt);
-    const dateText = date.toLocaleString();
+        <div id="word">Ready.</div>
 
-    option.textContent =
-      `${bookmark.bookName} — ${bookmark.percent.toFixed(1)}% (${dateText})`;
+        <div class="guide bottom"></div>
 
-    select.appendChild(option);
-  });
+        <span id="holdHint">
+            Press and hold here to read
+        </span>
+    </div>
 
-  restoreButton.disabled = false;
-}
 
-document.getElementById("saveBookmark").addEventListener("click", () => {
-  const bookmarks = getBookmarks();
+    <!-- BOOKMARKS -->
 
-  const text = document.getElementById("text").value.trim();
-  const position = typeof currentIndex !== "undefined" ? currentIndex : 0;
+    <section class="bookmark-panel" aria-label="Bookmarks">
 
-  if (!text) {
-    document.getElementById("bookmarkMessage").textContent =
-      "Load some text before saving a bookmark.";
-    return;
-  }
+        <button id="saveBookmark" type="button">
+            Bookmark this spot
+        </button>
 
-  const totalWords = words.length || 1;
-  const percent = (position / Math.max(totalWords - 1, 1)) * 100;
+        <div class="bookmark-row">
 
-  const bookmark = {
-    id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
-    bookId: getBookId(),
-    bookName: text.split(/\s+/).slice(0, 8).join(" ") + "…",
-    position,
-    percent,
-    createdAt: new Date().toISOString()
-  };
+            <label class="sr-only" for="bookmarks">
+                Saved bookmarks
+            </label>
 
-  bookmarks.unshift(bookmark);
+            <select id="bookmarks">
+                <option value="">
+                    Loading bookmarks…
+                </option>
+            </select>
 
-  // Keep the most recent 50 bookmarks.
-  saveBookmarks(bookmarks.slice(0, 50));
+            <button
+                id="restoreBookmark"
+                type="button"
+                disabled
+            >
+                Resume
+            </button>
 
-  renderBookmarks();
+        </div>
 
-  document.getElementById("bookmarkMessage").textContent =
-    "Bookmark saved privately on this device.";
-});
+        <p id="bookmarkMessage" role="status">
+            Bookmarks are stored privately in this browser on this device.
+        </p>
 
-document.getElementById("restoreBookmark").addEventListener("click", () => {
-  const select = document.getElementById("bookmarks");
-  const bookmarks = getBookmarks();
-  const bookmark = bookmarks[Number(select.value)];
+    </section>
 
-  if (!bookmark) return;
 
-  // Make sure the bookmarked text is currently loaded.
-  if (bookmark.bookId !== getBookId()) {
-    document.getElementById("bookmarkMessage").textContent =
-      "This bookmark belongs to different text. Load that text first.";
-    return;
-  }
+    <!-- READING SPEED -->
 
-  currentIndex = Math.max(
-    0,
-    Math.min(bookmark.position, words.length - 1)
-  );
+    <div class="speed">
 
-  updateReader();
+        <div>
+            <label for="speed">
+                Reading speed
+            </label>
 
-  document.getElementById("bookmarkMessage").textContent =
-    "Bookmark restored.";
-});
+            <output id="speedValue" for="speed">
+                250 <small>WPM</small>
+            </output>
+        </div>
 
-// Load bookmarks when the app starts.
-renderBookmarks();
+        <input
+            id="speed"
+            type="range"
+            min="60"
+            max="800"
+            step="10"
+            value="250"
+        >
+
+        <div class="range-labels">
+            <span>60 · Take your time</span>
+            <span>800 · Pick up the pace</span>
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- SOURCE / TEXT INPUT -->
+
+<aside class="source">
+
+    <div class="section-heading">
+        <h1>Your text</h1>
+        <span id="sourceCount">Sample text</span>
+    </div>
+
+
+    <!-- FILE UPLOAD -->
+
+    <label class="upload" for="file">
+
+        <span class="upload-icon">↑</span>
+
+        <strong>
+            Open a document
+        </strong>
+
+        <span>
+            Word, EPUB, PDF, or plain text
+        </span>
+
+        <input
+            id="file"
+            type="file"
+            accept=".docx,.epub,.pdf,.txt"
+        >
+
+    </label>
+
+
+    <div class="divider">
+        <span>or paste your words</span>
+    </div>
+
+
+    <!-- TEXT AREA -->
+
+    <label class="sr-only" for="text">
+        Text to read
+    </label>
+
+    <textarea
+        id="text"
+        spellcheck="false"
+        placeholder="Paste a chapter, an article, or anything you want to read…"
+    ></textarea>
+
+
+    <div class="paste-actions">
+
+        <button
+            id="clearText"
+            type="button"
+        >
+            Clear text
+        </button>
+
+        <button
+            id="load"
+            class="primary"
+            type="button"
+        >
+            Load text into reader
+        </button>
+
+    </div>
+
+
+    <p id="message" role="status">
+        Try the sample, or add something of your own.
+    </p>
+
+
+    <!-- CONTROLS -->
+
+    <div class="controls">
+
+        <h2>
+            A few simple controls
+        </h2>
+
+        <div>
+            <span>Hold mouse / one finger</span>
+            <strong>Read</strong>
+        </div>
+
+        <div>
+            <span>Release mouse / finger</span>
+            <strong>Back 10 &amp; pause</strong>
+        </div>
+
+        <div>
+            <span>Scroll up</span>
+            <strong>Back 5</strong>
+        </div>
+
+        <div>
+            <span>Scroll down</span>
+            <strong>Forward 5</strong>
+        </div>
+
+        <p>
+            Use gestures over the reading area. On a keyboard,
+            hold Space to read; release Space to rewind 10;
+            use ← / → to move five words. Tap and release five
+            times to rewind 50 words.
+        </p>
+
+    </div>
+
+</aside>
+
+</div> </main> <!-- Supporting scripts. These remain local files. app.js contains the localStorage bookmark system. --> <script src="import.js"></script> <script src="pdf-import.js"></script> <script src="app.js"></script> </body> </html>
