@@ -16,10 +16,93 @@ async function readDocx(buffer){const zip=new BookZip(buffer),doc=parseXml(await
  const runs=[];for(const p of localElements(doc,'p')){const pId=wAttr(child(child(p,'pPr'),'pStyle'),'val')||wAttr(defaultStyle,'styleId');const base=styleValue(pId,defaults??false);for(const r of localElements(p,'r')){let ancestor=r.parentElement,skip=false;while(ancestor&&ancestor!==p){if(['del','moveFrom'].includes(ancestor.localName))skip=true;ancestor=ancestor.parentElement;}if(skip)continue;const props=child(r,'rPr');let italic=styleValue(wAttr(child(props,'rStyle'),'val'),base);const direct=italicSetting(props);if(direct!==undefined)italic=direct;for(const node of r.children){if(node.localName==='t')runs.push({text:node.textContent,italic});else if(['tab','br','cr'].includes(node.localName))runs.push({text:' ',italic:false});}}runs.push({text:'\n',italic:false});}return tokenize(runs);}
 function zipPath(base,href){if(/^[a-z][\w+.-]*:|^\/\//i.test(href))throw Error('This book refers to content outside the EPUB file.');const raw=decodeURIComponent(href.split('#')[0].split('?')[0]);const path=[];for(const p of (base.slice(0,base.lastIndexOf('/')+1)+raw).split('/')){if(p==='..')path.pop();else if(p&&p!=='.')path.push(p);}return path.join('/');}
 function cssRules(css){const sheet=new CSSStyleSheet();sheet.replaceSync(css.replace(/@import\s+[^;]+;/gi,''));const result=[];function visit(rules){for(const rule of rules){if(rule.selectorText&&rule.style){const value=rule.style.getPropertyValue('font-style');if(value)for(const selector of rule.selectorText.split(',')){const s=selector.trim();result.push({selector:s,value,important:rule.style.getPropertyPriority('font-style')==='important',specificity:(s.match(/#[\w-]+/g)||[]).length*10000+(s.match(/\.[\w-]+|\[[^\]]+\]|:(?!:)[\w-]+/g)||[]).length*100+(s.replace(/#[\w-]+|\.[\w-]+|\[[^\]]+\]|:[\w-]+/g,'').match(/[a-zA-Z][\w-]*/g)||[]).length});}}else if(rule.cssRules)visit(rule.cssRules);}}visit(sheet.cssRules);return result;}
-function htmlRuns(root,rules=[]){const runs=[],blocks=new Set(['p','div','section','article','h1','h2','h3','h4','h5','h6','li','blockquote','tr','td','br','hr']);function walk(node,inherited=false){if(node.nodeType===3){runs.push({text:node.textContent.replace(/\s+/gu,' '),italic:inherited});return;}if(node.nodeType!==1)return;const tag=node.localName.toLowerCase();if(['script','style','head','svg','math','noscript','iframe','object'].includes(tag)||node.hasAttribute('hidden'))return;let italic=['em','i','cite','dfn'].includes(tag)?true:inherited;let winner=null;for(let order=0;order<rules.length;order++){const r=rules[order];let matches=false;try{matches=node.matches(r.selector);}catch{}if(matches&&(!winner||Number(r.important)>Number(winner.important)||(r.important===winner.important&&r.specificity>=winner.specificity)))winner=r;}
+function htmlRuns(root,rules=[],trackAnchors=false){const runs=[],blocks=new Set(['p','div','section','article','h1','h2','h3','h4','h5','h6','li','blockquote','tr','td','br','hr']);function walk(node,inherited=false){if(node.nodeType===3){runs.push({text:node.textContent.replace(/\s+/gu,' '),italic:inherited});return;}if(node.nodeType!==1)return;const tag=node.localName.toLowerCase();if(['script','style','head','svg','math','noscript','iframe','object'].includes(tag)||node.hasAttribute('hidden'))return;let italic=['em','i','cite','dfn'].includes(tag)?true:inherited;let winner=null;for(let order=0;order<rules.length;order++){const r=rules[order];let matches=false;try{matches=node.matches(r.selector);}catch{}if(matches&&(!winner||Number(r.important)>Number(winner.important)||(r.important===winner.important&&r.specificity>=winner.specificity)))winner=r;}
  let declaration;if(node.hasAttribute('style')){const inline=new CSSStyleSheet();inline.replaceSync('x{'+node.getAttribute('style')+'}');declaration=inline.cssRules[0]?.style;}const direct=declaration?.getPropertyValue('font-style');if(direct&&(!winner?.important||declaration.getPropertyPriority('font-style')==='important'))winner={value:direct};if(winner){const value=winner.value.trim();italic=value==='inherit'||value==='unset'?inherited:/^(italic|oblique)/.test(value);}
- if(blocks.has(tag))runs.push({text:'\n'});for(const c of node.childNodes)walk(c,italic);if(blocks.has(tag))runs.push({text:'\n'});}walk(root);return runs;}
-async function readEpub(buffer){const zip=new BookZip(buffer);if(!zip.entries.has('META-INF/container.xml'))throw Error('This EPUB is missing its book index.');const container=parseXml(await zip.text('META-INF/container.xml'));const root=localElements(container,'rootfile').find(n=>n.getAttribute('media-type')==='application/oebps-package+xml')||localElements(container,'rootfile')[0];const path=root?.getAttribute('full-path');if(!path)throw Error('This EPUB has no readable book index.');const opf=parseXml(await zip.text(path)),items=new Map(localElements(opf,'item').map(n=>[n.getAttribute('id'),n]));const spine=localElements(opf,'itemref').filter(n=>n.getAttribute('linear')!=='no');if(!spine.length)throw Error('This EPUB has no reading order.');const all=[],cache=new Map();
- async function stylesheet(path,seen=new Set()){if(seen.has(path))return '';seen.add(path);if(cache.has(path))return cache.get(path);let css=await zip.text(path),prefix='';for(const match of css.matchAll(/@import\s+(?:url\(\s*)?["']([^"']+)["']\s*\)?[^;]*;/gi)){if(!/^(?:https?:|\/\/|data:)/i.test(match[1]))prefix+=await stylesheet(zipPath(path,match[1]),seen);}css=prefix+'\n'+css;cache.set(path,css);return css;}
- for(const ref of spine){const item=items.get(ref.getAttribute('idref'));if(!item)throw Error('This EPUB has an incomplete reading order.');const chapterPath=zipPath(path,item.getAttribute('href')||'');if(zip.entries.has('META-INF/encryption.xml')){const enc=parseXml(await zip.text('META-INF/encryption.xml'));if(localElements(enc,'CipherReference').some(n=>decodeURIComponent(n.getAttribute('URI')||'')===chapterPath))throw Error('This EPUB text is DRM-protected. Use an unprotected EPUB.');}
- const doc=parseXml(await zip.text(chapterPath));let css='';for(const link of doc.querySelectorAll('style, link')){if(link.localName==='style'){css+='\n'+link.textContent;continue;}if((link.getAttribute('rel')||'').split(/\s+/).includes('stylesheet')){const href=link.getAttribute('href')||'';if(!/^(?:https?:|\/\/|data:)/i.test(href)){const cssPath=zipPath(chapterPath,href);if(zip.entries.has(cssPath))css+='\n'+await stylesheet(cssPath);}}}const body=localElements(doc,'body')[0];if(body)all.push(tokenize(htmlRuns(body,cssRules(css))));}return all.flat();}
+ if(blocks.has(tag))runs.push({text:'\n'});if(trackAnchors){const id=node.getAttribute('id')||node.getAttributeNS('http://www.w3.org/XML/1998/namespace','id');if(id)runs.push({anchor:id});if(tag==='a'&&node.getAttribute('name'))runs.push({anchor:node.getAttribute('name')});}for(const c of node.childNodes)walk(c,italic);if(blocks.has(tag))runs.push({text:'\n'});}walk(root);return runs;}
+// EPUB 3 navigation and EPUB 2 NCX targets map to the same tokens we display.
+function chapterTokens(runs){
+  const words=[],anchors=new Map();let parts=[];
+  function flush(){if(parts.length){words.push({text:parts.map(p=>p.text).join(''),parts});parts=[];}}
+  for(const run of runs){
+    if(run.anchor!==undefined){if(!anchors.has(run.anchor))anchors.set(run.anchor,words.length);continue;}
+    for(const piece of run.text.split(/(\s+)/u)){
+      if(!piece)continue;
+      if(/^\s+$/u.test(piece)){flush();if(/[\r\n]/u.test(piece)&&words.length)words.at(-1).paragraphEnd=true;continue;}
+      const italic=!!run.italic,last=parts.at(-1);
+      if(last&&last.italic===italic)last.text+=piece;else parts.push({text:piece,italic});
+    }
+  }
+  flush();return {words,anchors};
+}
+async function readEpub(buffer){
+  const zip=new BookZip(buffer);
+  const container=parseXml(await zip.text('META-INF/container.xml'));
+  const root=localElements(container,'rootfile').find(n=>n.getAttribute('media-type')==='application/oebps-package+xml')||localElements(container,'rootfile')[0];
+  const opfPath=root?.getAttribute('full-path');if(!opfPath)throw Error('This EPUB has no readable book index.');
+  const opf=parseXml(await zip.text(opfPath));
+  const items=new Map(localElements(opf,'item').map(n=>[n.getAttribute('id'),n]));
+  const spine=localElements(opf,'itemref').filter(n=>n.getAttribute('linear')!=='no');
+  if(!spine.length)throw Error('This EPUB has no reading order.');
+  const all=[],sections=[],targets=new Map(),cache=new Map();
+  const encryption=zip.entries.has('META-INF/encryption.xml')?parseXml(await zip.text('META-INF/encryption.xml')):null;
+  async function stylesheet(path,seen=new Set()){
+    if(seen.has(path))return '';seen.add(path);if(cache.has(path))return cache.get(path);
+    let css=await zip.text(path),prefix='';
+    for(const match of css.matchAll(/@import\s+(?:url\(\s*)?["']([^"']+)["']\s*\)?[^;]*;/gi)){
+      if(!/^(?:https?:|\/\/|data:)/i.test(match[1]))prefix+=await stylesheet(zipPath(path,match[1]),seen);
+    }
+    css=prefix+'\n'+css;cache.set(path,css);return css;
+  }
+  for(const ref of spine){
+    const item=items.get(ref.getAttribute('idref'));if(!item)throw Error('This EPUB has an incomplete reading order.');
+    const path=zipPath(opfPath,item.getAttribute('href')||'');
+    if(encryption&&localElements(encryption,'CipherReference').some(n=>decodeURIComponent(n.getAttribute('URI')||'')===path))throw Error('This EPUB text is DRM-protected. Use an unprotected EPUB.');
+    const doc=parseXml(await zip.text(path));let css='';
+    for(const link of doc.querySelectorAll('style, link')){
+      if(link.localName==='style'){css+='\n'+link.textContent;continue;}
+      if((link.getAttribute('rel')||'').split(/\s+/).includes('stylesheet')){
+        const href=link.getAttribute('href')||'';
+        if(!/^(?:https?:|\/\/|data:)/i.test(href)){const cssPath=zipPath(path,href);if(zip.entries.has(cssPath))css+='\n'+await stylesheet(cssPath);}
+      }
+    }
+    const body=localElements(doc,'body')[0];if(!body)continue;
+    const parsed=chapterTokens(htmlRuns(body,cssRules(css),true));if(!parsed.words.length)continue;
+    const start=all.length;targets.set(path,start);
+    for(const [anchor,offset] of parsed.anchors){if(offset<parsed.words.length)targets.set(path+'#'+anchor,start+offset);}
+    const heading=body.querySelector('h1,h2,h3');
+    sections.push({title:heading?.textContent.trim()||`Section ${sections.length+1}`,start,path});
+    for(const word of parsed.words)all.push(word);
+  }
+  function resolve(base,href){
+    try{const hash=href.indexOf('#');const path=href.startsWith('#')?base:zipPath(base,href);const fragment=hash<0?'':decodeURIComponent(href.slice(hash+1));return targets.get(path+(fragment?'#'+fragment:''));}catch{return undefined;}
+  }
+  const chapters=[];
+  function add(base,href,label){const start=resolve(base,href);if(Number.isInteger(start)&&label.trim())chapters.push({title:label.trim().replace(/\s+/g,' '),start});}
+  const nav=[...items.values()].find(n=>(n.getAttribute('properties')||'').split(/\s+/).includes('nav'));
+  if(nav){
+    try{
+      const path=zipPath(opfPath,nav.getAttribute('href')||'');const doc=parseXml(await zip.text(path));
+      const toc=localElements(doc,'nav').find(n=>(n.getAttributeNS('http://www.idpf.org/2007/ops','type')||n.getAttribute('epub:type')||'').split(/\s+/).includes('toc')||n.getAttribute('role')==='doc-toc');
+      if(toc)for(const a of localElements(toc,'a'))add(path,a.getAttribute('href')||'',a.textContent);
+    }catch{/* Optional navigation must not prevent reading the book. */}
+  }
+  if(!chapters.length){
+    const ncx=items.get(localElements(opf,'spine')[0]?.getAttribute('toc'))||[...items.values()].find(n=>n.getAttribute('media-type')==='application/x-dtbncx+xml');
+    if(ncx)try{
+      const path=zipPath(opfPath,ncx.getAttribute('href')||'');const doc=parseXml(await zip.text(path));
+      for(const point of localElements(doc,'navPoint')){
+        const content=[...point.children].find(n=>n.localName==='content');const label=[...point.children].find(n=>n.localName==='navLabel');
+        if(content&&label)add(path,content.getAttribute('src')||'',label.textContent);
+      }
+    }catch{}
+  }
+  // Include content files not represented in the TOC, without adding a duplicate
+  // section for a file whose chapters are anchored inside that same file.
+  for(let i=0;i<sections.length;i++){
+    const section=sections[i],end=sections[i+1]?.start??all.length;
+    if(!chapters.some(c=>c.start>=section.start&&c.start<end))chapters.push({title:section.title,start:section.start});
+  }
+  if(all.length&&chapters.length&&!chapters.some(c=>c.start===0))chapters.push({title:'Beginning',start:0});
+  const seen=new Set();all.chapters=chapters.sort((a,b)=>a.start-b.start).filter(c=>{if(seen.has(c.start))return false;seen.add(c.start);return true;});
+  return all;
+}
